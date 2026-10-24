@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (ignored by Git), then replace every placeholder.
+aws_region         = "ap-southeast-1"
+domain             = "gateway.example.com"
+acme_email         = "operator@example.com"
+monthly_budget_usd = 0 # Set your approved positive alert budget. NOT a spending cap.
+release_commit     = "REPLACE_WITH_REVIEWED_40_CHARACTER_COMMIT"
+gateway_image      = "ghcr.io/golden-shao/business_app/gateway@sha256:REPLACE_WITH_PUBLISHED_DIGEST"

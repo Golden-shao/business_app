@@ -19,7 +19,7 @@
       <a href="#requests"><span>≡</span>请求记录</a>
       <a href="#connection"><span>⚙</span>连接设置</a>
     </nav>
-    <div class="sidebar-bottom"><span class="tiny-dot"></span> Built to run on your terms.<small>Open source · Kubernetes ready</small></div>
+    <div class="sidebar-bottom"><span class="tiny-dot"></span> Built to run on your terms.<small>Open source · Self-hosted</small></div>
   </aside>
   <main>
     <header><div class="breadcrumbs">Workspace <span>/</span> Overview</div><div class="header-right"><span class="outline-badge">SELF-HOSTED</span><span class="avatar">GS</span></div></header>
@@ -43,7 +43,7 @@
         <p id="response-id" class="request-id"></p>
       </section>
       <div class="right-column"><section id="connection" class="panel connection"><div class="panel-heading"><div><span class="eyebrow">CONNECTION</span><h2>连接你的实例</h2></div><span class="connection-symbol">⌁</span></div><p class="section-description">此网页与 API 同源部署。管理令牌仅保留在当前页面内存中。</p><form id="connection-form"><label for="endpoint">实例地址</label><input id="endpoint" readonly aria-describedby="endpoint-help"><small id="endpoint-help">iOS App 也连接此服务；真机请使用可达的 HTTPS 地址。</small><label for="token">管理令牌 · ADMIN_TOKEN</label><input id="token" type="password" autocomplete="off" placeholder="粘贴 .env 中的 ADMIN_TOKEN" required minlength="16"><div class="connection-actions"><button class="button secondary" type="submit">连接实例</button><button class="text-button" id="disconnect" type="button">断开</button></div></form><p id="error" role="alert" hidden></p></section>
-      <section class="learning-card"><div class="eyebrow">A SMALL GATEWAY. A REAL SYSTEM.</div><h2>从一个请求，<br>走向一个集群。</h2><p>先跑通本地链路，再练习多副本、滚动更新与自动扩缩容。</p><div class="learning-tags"><span>Deployment</span><span>Redis</span><span>HPA</span></div><div class="learning-footer">01 <span>BUILD IN THE OPEN</span><span>↗</span></div></section></div>
+      <section class="learning-card"><div class="eyebrow">ONE ENDPOINT. YOUR MODELS.</div><h2>一个接口，<br>连接你的 AI 应用。</h2><p>在自托管实例中配置模型，通过统一 API 调用。上游密钥留在服务端，网站与 App 帮你查看处理状态。</p><div class="learning-tags"><span>API</span><span>Web</span><span>iOS</span></div><div class="learning-footer">01 <span>BUILD IN THE OPEN</span><span>↗</span></div></section></div>
     </div>
     <section id="requests" class="panel requests"><div class="panel-heading"><div><span class="eyebrow">SHARED ACTIVITY</span><h2>最近的请求</h2></div><span id="request-note" class="subtle">最近 20 条 · 展开 ID 可选择复制 · 不记录正文</span></div><div class="table-wrap"><table><thead><tr><th>请求 ID</th><th>时间</th><th>请求来源</th><th>模型模式</th><th>状态</th><th>耗时</th><th>缓存</th><th>服务节点</th></tr></thead><tbody id="request-rows"><tr><td colspan="8" class="empty">暂无数据。连接实例后查看网站与 App 的共享请求记录。</td></tr></tbody></table></div></section>
     <footer><span>HARBOR / AI GATEWAY</span><span>掌握入口，也掌握你的数据。</span><span>v0.1.1 · Single tenant</span></footer>
