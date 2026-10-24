@@ -62,7 +62,9 @@ def test_rate_limit_is_shared_and_retry_after_is_present():
         denied = second.post('/api/playground', headers=ADMIN_HEADERS, json=BODY)
         assert denied.status_code == 429
         assert 1 <= int(denied.headers['retry-after']) <= 60
-        assert first.get('/api/overview', headers=ADMIN_HEADERS).json()['stats']['errors'] == 1
+        summary = first.get('/api/overview', headers=ADMIN_HEADERS).json()
+        assert summary['stats']['errors'] == 1
+        assert summary['recent_requests'][0]['id'] == denied.headers['x-request-id']
 
 
 def test_concurrent_rate_limit_is_atomic():
@@ -122,3 +124,32 @@ def test_website_and_cors():
         assert allowed.headers['access-control-allow-origin'] == 'http://localhost:7357'
         denied = client.options('/api/overview', headers={'Origin': 'https://evil.example', 'Access-Control-Request-Method': 'GET'})
         assert 'access-control-allow-origin' not in denied.headers
+
+
+def test_client_source_is_bounded_and_does_not_change_cache_scope():
+    with TestClient(app()) as client:
+        for path, extra in [('/api/playground', {}),
+                            ('/api/playground', {'X-Harbor-Client': 'flutter'}),
+                            ('/v1/chat/completions', {'X-Harbor-Client': 'flutter'})]:
+            headers = CLIENT_HEADERS if path.startswith('/v1/') else ADMIN_HEADERS
+            response = client.post(path, headers={**headers, **extra}, json=BODY)
+            assert response.status_code == 200
+        summary = client.get('/api/overview', headers=ADMIN_HEADERS).json()
+        assert [r['source'] for r in summary['recent_requests']] == ['api', 'app', 'web']
+        assert summary['stats']['cache_hits'] == 2
+        client.post('/api/playground', headers={**ADMIN_HEADERS, 'X-Harbor-Client': '<script>'}, json=BODY)
+        assert client.get('/api/overview', headers=ADMIN_HEADERS).json()['recent_requests'][0]['source'] == 'web'
+
+
+def test_flutter_can_read_rate_limit_headers_across_origins():
+    with TestClient(app(rate_limit_per_minute=1)) as client:
+        headers = {**ADMIN_HEADERS, 'Origin': 'http://localhost:7357', 'X-Harbor-Client': 'flutter'}
+        preflight = client.options('/api/playground', headers={
+            'Origin': 'http://localhost:7357', 'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'Authorization, Content-Type, X-Harbor-Client'})
+        assert preflight.status_code == 200
+        client.post('/api/playground', headers=headers, json=BODY)
+        limited = client.post('/api/playground', headers=headers, json=BODY)
+        assert limited.status_code == 429
+        assert 'Retry-After' in limited.headers['access-control-expose-headers']
+        assert limited.headers['x-request-id']

@@ -2,7 +2,7 @@
 
 开源、自托管的单租户 AI 网关：用一个小而完整的系统学习 Kubernetes，附带独立 HTML 管理台和 Flutter iOS 客户端。
 
-**v0.1 学习与开发版。默认本地模拟模型，无需云账号或付费 API。** Harbor 是工作名，与 CNCF Harbor 镜像仓库无关联。
+**v0.1.1 学习与开发版。默认本地模拟模型，无需云账号或付费 API。** Harbor 是工作名，与 CNCF Harbor 镜像仓库无关联。
 
 ## 能力
 
@@ -13,7 +13,7 @@
 - Compose、Kubernetes Deployment / Service / Redis StatefulSet / 探针 / PDB / 可选 HPA。
 - 后端和 Flutter 测试，GitHub Actions 检查与容器构建。
 
-网站与 App 连接同一个 API，点击“刷新”同步共享记录，当前没有后台推送。
+网站与 App 连接同一个 API，前台默认每 5 秒自动同步共享记录，可手动暂停或刷新。后台与断开后暂停同步；不会自动发送或重试模型请求。记录标明网站、App、API 来源，限流时显示重试倒计时。
 
 ```mermaid
 flowchart LR
@@ -56,7 +56,18 @@ flutter pub get
 flutter run -d chrome --web-port 7357
 ```
 
-在“连接”填写 `http://localhost:8000` 与同一个 `ADMIN_TOKEN`。App 发送请求后，到 HTML 网站刷新查看记录。7357 在开发 CORS 白名单；变更时在 `.env` 设置 `CORS_ORIGINS=["http://localhost:新端口"]` 并重启后端。
+在“连接”填写 `http://localhost:8000` 与同一个 `ADMIN_TOKEN`。App 发送请求后，HTML 网站会在下一次同步时显示来源为 App 的记录。7357 在开发 CORS 白名单；变更时在 `.env` 设置 `CORS_ORIGINS=["http://localhost:新端口"]` 并重启后端。
+
+首次使用按网站上方的三步引导完成连接、发送和多端联动。遇到问题：
+
+| 提示 | 下一步 |
+| --- | --- |
+| 管理令牌无效 | 使用 `.env` 中的 `ADMIN_TOKEN` 重新连接，不能用 `GATEWAY_TOKEN` |
+| 共享调用限额 | 等待按钮倒计时结束，再手动点击；消息不会自动重发 |
+| 同步中断 / 上次数据 | 当前统计是旧快照，检查后端、Redis 和网络；恢复后自动同步 |
+| 模型上游不可用 | 检查服务端上游配置；提交问题时附上请求 ID，不附令牌或消息正文 |
+
+在网页展开请求 ID 可选中复制；在 App 点击一条记录查看完整详情。来源仅为客户端展示标签，不能当作可信审计身份；升级前的旧记录显示“未标记”。
 
 **iOS 编译、模拟器、签名和上架需要 macOS + Xcode，WSL 无法执行。** 在 Mac 安装 Flutter 后：
 
@@ -143,9 +154,18 @@ flutter build web
 kubectl kustomize deploy/k8s
 ```
 
+网页交互验收使用隔离的 mock 服务，不读取本地令牌、不调用付费模型：
+
+```bash
+pip install -r gateway/requirements-ui.txt
+PYTHONPATH=gateway CHROME_EXECUTABLE=/usr/bin/google-chrome python scripts/test_site.py
+```
+
+没有现成 Chrome 时，先执行 `python -m playwright install --with-deps chromium`，再去掉 `CHROME_EXECUTABLE` 运行脚本。
+
 测试覆盖凭证隔离、跨副本状态、并发限流、Redis 故障关闭、上游转发和错误脱敏。真实供应商通过 HTTP mock 验证，不调用付费模型。Flutter 测试检查凭证传递与共享指标展示。
 
-CI 对 push/PR 执行检查、容器构建和 K8s schema 校验。另有手动触发的 macOS iOS 无签名编译 workflow，不替代真机验证。暂不自动发布 GHCR 或部署，先跑稳 CI，再加入明确的发布流程。
+CI 对 push/PR 执行检查、网页浏览器验收、容器构建和 K8s schema 校验。另有手动触发的 macOS iOS 无签名编译 workflow，不替代真机验证。暂不自动发布 GHCR 或部署，先跑稳 CI，再加入明确的发布流程。
 
 ```text
 lib/               Flutter 管理客户端
@@ -157,4 +177,4 @@ scripts/           环境工具
 docs/ROADMAP.md    发展目标和阶段验收
 ```
 
-参见 [路线图](docs/ROADMAP.md)、[验证记录与限制](docs/VALIDATION.md)、[贡献指南](CONTRIBUTING.md) 和 [安全说明](SECURITY.md)。许可：[MIT](LICENSE)。
+参见 [产品决策与优先级](docs/PRODUCT.md)、[路线图](docs/ROADMAP.md)、[验证记录与限制](docs/VALIDATION.md)、[贡献指南](CONTRIBUTING.md) 和 [安全说明](SECURITY.md)。许可：[MIT](LICENSE)。

@@ -81,11 +81,11 @@ def create_app(settings: Settings | None = None, store=None, upstream=None):
         if upstream is None:
             await app.state.upstream.aclose()
 
-    app = FastAPI(title='Harbor AI Gateway', version='0.1.0', lifespan=lifespan,
+    app = FastAPI(title='Harbor AI Gateway', version='0.1.1', lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(CORSMiddleware, allow_origins=config.cors_origins,
-                       allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type'],
-                       expose_headers=['X-Cache', 'X-Request-ID'])
+                       allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type', 'X-Harbor-Client'],
+                       expose_headers=['X-Cache', 'X-Request-ID', 'Retry-After'])
 
     def auth(expected):
         async def check(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
@@ -112,6 +112,8 @@ def create_app(settings: Settings | None = None, store=None, upstream=None):
         response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'"
         if request.url.path.startswith(('/api/', '/v1/')):
             response.headers['Cache-Control'] = 'no-store'
+        if request_id := getattr(request.state, 'request_id', None):
+            response.headers['X-Request-ID'] = request_id
         return response
 
     @app.exception_handler(RedisError)
@@ -127,10 +129,10 @@ def create_app(settings: Settings | None = None, store=None, upstream=None):
         await request.app.state.store.ping()
         return {'status': 'ready'}
 
-    async def record(redis, request_id, code, elapsed, cached):
+    async def record(redis, request_id, code, elapsed, cached, source):
         event = {'id': request_id, 'time': int(time.time()), 'status': code,
                  'latency_ms': elapsed, 'cached': cached, 'provider': config.provider,
-                 'served_by': os.getenv('HOSTNAME', 'local')}
+                 'served_by': os.getenv('HOSTNAME', 'local'), 'source': source}
         # No prompts, replies, API keys or token values are stored in request logs.
         async with redis.pipeline(transaction=True) as pipe:
             pipe.hincrby('harbor:stats', 'requests', 1)
@@ -145,6 +147,9 @@ def create_app(settings: Settings | None = None, store=None, upstream=None):
         redis = request.app.state.store
         started = time.monotonic()
         request_id = 'chatcmpl-' + uuid.uuid4().hex
+        request.state.request_id = request_id
+        source = ('api' if request.url.path.startswith('/v1/') else
+                  'app' if request.headers.get('X-Harbor-Client') == 'flutter' else 'web')
         code, cached = 200, False
         try:
             count, retry = await redis.eval(LIMIT_SCRIPT, 1, 'harbor:rate:single-tenant')
@@ -187,7 +192,7 @@ def create_app(settings: Settings | None = None, store=None, upstream=None):
             code = exc.status_code
             raise
         finally:
-            await record(redis, request_id, code, round((time.monotonic() - started) * 1000), cached)
+            await record(redis, request_id, code, round((time.monotonic() - started) * 1000), cached, source)
 
     @app.post('/v1/chat/completions', dependencies=[Depends(client)])
     async def completions(body: Completion, request: Request, response: Response):
@@ -211,7 +216,7 @@ def create_app(settings: Settings | None = None, store=None, upstream=None):
             stats, events = await pipe.execute()
         values = {k: int(v) for k, v in stats.items()}
         total = values.get('requests', 0)
-        return {'version': '0.1.0', 'provider': config.provider, 'served_by': os.getenv('HOSTNAME', 'local'),
+        return {'version': '0.1.1', 'provider': config.provider, 'served_by': os.getenv('HOSTNAME', 'local'),
                 'rate_limit_per_minute': config.rate_limit_per_minute, 'cache_ttl_seconds': config.cache_ttl_seconds,
                 'stats': {'requests': total, 'errors': values.get('errors', 0),
                           'cache_hits': values.get('cache_hits', 0),

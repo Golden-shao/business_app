@@ -16,6 +16,11 @@ jobs:
       - run: python -m pytest gateway/tests -q
         env:
           PYTHONPATH: gateway
+      - run: pip install -r gateway/requirements-ui.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python scripts/test_site.py
+        env:
+          PYTHONPATH: gateway
       - run: docker build -f gateway/Dockerfile -t harbor-gateway:test .
       - uses: azure/setup-kubectl@v4
         with:

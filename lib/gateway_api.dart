@@ -4,10 +4,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class GatewayException implements Exception {
-  const GatewayException(this.message);
+  const GatewayException(
+    this.message, {
+    this.statusCode,
+    this.retryAfter = 0,
+    this.requestId,
+  });
   final String message;
+  final int? statusCode;
+  final int retryAfter;
+  final String? requestId;
   @override
-  String toString() => message;
+  String toString() =>
+      requestId == null ? message : '$message\n请求 ID：$requestId';
 }
 
 class GatewayApi {
@@ -31,6 +40,16 @@ class GatewayApi {
   final String token;
   final http.Client client;
 
+  static String _failureMessage(int status) => switch (status) {
+    401 => '管理令牌无效或已失效，请使用 ADMIN_TOKEN 重新连接。GATEWAY_TOKEN 不能用于管理。',
+    413 => '消息过长，请缩短内容后重试。',
+    422 => '请求内容不符合要求，请检查消息是否为空或过长。',
+    429 => '已达到共享调用限额，倒计时结束后可手动重试。消息不会自动重发。',
+    502 => '模型上游暂时不可用，请检查服务端的上游配置，稍后再试。',
+    503 => '网关暂未就绪，请检查后端和 Redis，恢复后会继续同步。',
+    _ => '服务返回 $status，请稍后重试或检查网关日志。',
+  };
+
   Future<http.Response> _request(
     String path, [
     Map<String, dynamic>? body,
@@ -39,6 +58,7 @@ class GatewayApi {
       final headers = {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
+        'X-Harbor-Client': 'flutter',
       };
       final uri = base.resolve(path);
       final response =
@@ -47,38 +67,64 @@ class GatewayApi {
                   : client.post(uri, headers: headers, body: jsonEncode(body)))
               .timeout(const Duration(seconds: 35));
       if (response.statusCode >= 400) {
-        final data =
-            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-        final detail = data['detail'] is String ? data['detail'] : '请求参数不正确';
-        throw GatewayException('${response.statusCode} · $detail');
+        throw GatewayException(
+          _failureMessage(response.statusCode),
+          statusCode: response.statusCode,
+          retryAfter: response.statusCode == 429
+              ? (int.tryParse(response.headers['retry-after'] ?? '') ?? 60)
+                    .clamp(1, 3600)
+              : 0,
+          requestId: response.headers['x-request-id'],
+        );
       }
       return response;
     } on TimeoutException {
-      throw const GatewayException('连接超时，请检查地址或稍后重试。');
+      throw const GatewayException('连接超时，请检查地址和网络，稍后重试。');
     } on http.ClientException {
-      throw const GatewayException('无法连接网关，请检查网络、地址和服务状态。');
+      throw const GatewayException('无法连接网关，请检查网络、地址和后端进程。');
+    }
+  }
+
+  Map<String, dynamic> _decode(http.Response response) {
+    try {
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is! Map<String, dynamic>) throw const FormatException();
+      return data;
     } on FormatException {
-      throw const GatewayException('网关返回了无法识别的数据，请检查服务地址。');
+      throw const GatewayException('服务未返回有效的 JSON 数据，请确认连接的是 Harbor 网关。');
     }
   }
 
   Future<Map<String, dynamic>> overview() async {
-    final response = await _request('/api/overview');
-    return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final data = _decode(await _request('/api/overview'));
+    if (data['stats'] is! Map || data['recent_requests'] is! List) {
+      throw const GatewayException('实例返回的数据不完整，请确认 Harbor 服务版本。');
+    }
+    return data;
   }
 
-  Future<({String content, String cache})> send(String message) async {
+  Future<({String content, String cache, String? requestId})> send(
+    String message,
+  ) async {
     final response = await _request('/api/playground', {
       'model': 'gateway-default',
       'messages': [
         {'role': 'user', 'content': message},
       ],
     });
-    final data =
-        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final data = _decode(response);
+    final choices = data['choices'];
+    if (choices is! List ||
+        choices.isEmpty ||
+        choices.first is! Map ||
+        choices.first['message'] is! Map ||
+        choices.first['message']['content'] is! String) {
+      throw const GatewayException('模型回复格式不正确，请检查网关和上游配置。');
+    }
     return (
-      content: data['choices'][0]['message']['content'] as String,
+      content: choices.first['message']['content'] as String,
       cache: response.headers['x-cache'] ?? 'MISS',
+      requestId: response.headers['x-request-id'] ?? data['id'] as String?,
     );
   }
 }

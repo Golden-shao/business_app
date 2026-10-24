@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -5,9 +7,22 @@ import 'gateway_api.dart';
 
 void main() => runApp(const HarborApp());
 
+String _sourceName(dynamic source) => switch (source) {
+  'web' => '网站',
+  'app' => 'App',
+  'api' => 'API',
+  _ => '未标记',
+};
+String _formatTime(DateTime time) => [
+  time.hour,
+  time.minute,
+  time.second,
+].map((value) => value.toString().padLeft(2, '0')).join(':');
+
 class HarborApp extends StatelessWidget {
-  const HarborApp({super.key, this.client});
+  const HarborApp({super.key, this.client, this.now});
   final http.Client? client;
+  final DateTime Function()? now;
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Harbor · AI Gateway',
@@ -22,18 +37,20 @@ class HarborApp extends StatelessWidget {
         fillColor: Colors.white,
       ),
     ),
-    home: GatewayScreen(client: client),
+    home: GatewayScreen(client: client, now: now),
   );
 }
 
 class GatewayScreen extends StatefulWidget {
-  const GatewayScreen({super.key, this.client});
+  const GatewayScreen({super.key, this.client, this.now});
   final http.Client? client;
+  final DateTime Function()? now;
   @override
   State<GatewayScreen> createState() => _GatewayScreenState();
 }
 
-class _GatewayScreenState extends State<GatewayScreen> {
+class _GatewayScreenState extends State<GatewayScreen>
+    with WidgetsBindingObserver {
   final _endpoint = TextEditingController(text: 'http://localhost:8000');
   final _token = TextEditingController();
   final _prompt = TextEditingController(text: '用三句话解释 Kubernetes 的 Service。');
@@ -43,18 +60,36 @@ class _GatewayScreenState extends State<GatewayScreen> {
   String? _error;
   String _reply = '连接网关后发送请求。默认模拟模式不调用真实模型。';
   String _replyMeta = '';
+  String? _replyId;
+  String? _syncError;
+  DateTime? _lastSynced;
+  DateTime? _retryAt;
+  Timer? _syncTimer;
+  Timer? _retryTimer;
+  bool _autoSync = true;
+  bool _foreground = true;
+  bool _refreshing = false;
   bool _busy = false;
   int _tab = 0;
   int _generation = 0;
+  int _overviewSequence = 0;
+  DateTime get _now => widget.now?.call() ?? DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _client = widget.client ?? http.Client();
+    WidgetsBinding.instance.addObserver(this);
+    _foreground =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _syncTimer?.cancel();
+    _retryTimer?.cancel();
     _endpoint.dispose();
     _token.dispose();
     _prompt.dispose();
@@ -62,13 +97,75 @@ class _GatewayScreenState extends State<GatewayScreen> {
     super.dispose();
   }
 
+  int get _retryRemaining {
+    final milliseconds = _retryAt?.difference(_now).inMilliseconds ?? 0;
+    return milliseconds > 0 ? (milliseconds / 1000).ceil() : 0;
+  }
+
+  void _scheduleSync() {
+    _syncTimer?.cancel();
+    if (_api == null || !_autoSync || !_foreground) return;
+    _syncTimer = Timer(
+      const Duration(seconds: 5),
+      () => _refresh(background: true),
+    );
+  }
+
+  void _tickRetry() {
+    _retryTimer?.cancel();
+    if (!_foreground || _retryRemaining == 0) return;
+    _retryTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _retryRemaining == 0) timer.cancel();
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _syncTimer?.cancel();
+    _retryTimer?.cancel();
+    if (_foreground) {
+      _tickRetry();
+      if (_autoSync) _refresh(background: true);
+    }
+  }
+
+  void _disconnect() {
+    _generation++;
+    _syncTimer?.cancel();
+    _retryTimer?.cancel();
+    setState(() {
+      _api = null;
+      _overview = null;
+      _token.clear();
+      _error = null;
+      _syncError = null;
+      _reply = '已断开连接。';
+      _replyMeta = '';
+      _replyId = null;
+      _lastSynced = null;
+      _retryAt = null;
+      _refreshing = false;
+    });
+  }
+
   Future<void> _connect() async {
     final attempt = ++_generation;
+    _syncTimer?.cancel();
+    _retryTimer?.cancel();
     setState(() {
       _busy = true;
       _error = null;
       _overview = null;
       _api = null;
+      _syncError = null;
+      _lastSynced = null;
+      _retryAt = null;
+      _replyId = null;
+      _replyMeta = '';
+      _reply = '连接网关后发送请求。默认模拟模式不调用真实模型。';
+      _refreshing = false;
     });
     try {
       final api = GatewayApi(
@@ -82,7 +179,9 @@ class _GatewayScreenState extends State<GatewayScreen> {
         _api = api;
         _overview = overview;
         _tab = 0;
+        _lastSynced = _now;
       });
+      _scheduleSync();
     } catch (e) {
       if (mounted && attempt == _generation) {
         setState(() => _error = e.toString());
@@ -92,32 +191,58 @@ class _GatewayScreenState extends State<GatewayScreen> {
     }
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool background = false}) async {
     final api = _api;
     final attempt = _generation;
-    if (api == null) return;
+    if (api == null || _refreshing || _busy) {
+      _scheduleSync();
+      return;
+    }
+    _refreshing = true;
+    final sequence = ++_overviewSequence;
     setState(() {
-      _busy = true;
-      _error = null;
+      if (!background) {
+        _busy = true;
+        _error = null;
+      }
     });
     try {
       final overview = await api.overview();
-      if (mounted && attempt == _generation) {
-        setState(() => _overview = overview);
+      if (mounted && attempt == _generation && sequence == _overviewSequence) {
+        setState(() {
+          _overview = overview;
+          _lastSynced = _now;
+          _syncError = null;
+        });
       }
     } catch (e) {
-      if (mounted && attempt == _generation) {
-        setState(() => _error = e.toString());
+      if (mounted && attempt == _generation && sequence == _overviewSequence) {
+        setState(() {
+          _syncError = e.toString();
+          if (e is GatewayException && e.statusCode == 401) _api = null;
+        });
       }
     } finally {
-      if (mounted && attempt == _generation) setState(() => _busy = false);
+      if (mounted && attempt == _generation) {
+        setState(() {
+          _refreshing = false;
+          if (!background) _busy = false;
+        });
+        _scheduleSync();
+      }
     }
   }
 
   Future<void> _send() async {
     final api = _api;
-    if (api == null || _prompt.text.trim().isEmpty) return;
+    if (api == null ||
+        _busy ||
+        _retryRemaining > 0 ||
+        _prompt.text.trim().isEmpty) {
+      return;
+    }
     final attempt = _generation;
+    ++_overviewSequence;
     setState(() {
       _busy = true;
       _error = null;
@@ -128,17 +253,46 @@ class _GatewayScreenState extends State<GatewayScreen> {
       setState(() {
         _reply = result.content;
         _replyMeta = '200 OK · CACHE ${result.cache}';
+        _replyId = result.requestId;
       });
-      final overview = await api.overview();
-      if (mounted && attempt == _generation) {
-        setState(() => _overview = overview);
+      final sequence = ++_overviewSequence;
+      try {
+        final overview = await api.overview();
+        if (mounted &&
+            attempt == _generation &&
+            sequence == _overviewSequence) {
+          setState(() {
+            _overview = overview;
+            _lastSynced = _now;
+            _syncError = null;
+          });
+        }
+      } catch (e) {
+        if (mounted &&
+            attempt == _generation &&
+            sequence == _overviewSequence) {
+          setState(() {
+            _syncError = e.toString();
+            if (e is GatewayException && e.statusCode == 401) _api = null;
+          });
+        }
       }
     } catch (e) {
       if (mounted && attempt == _generation) {
-        setState(() => _error = e.toString());
+        setState(() {
+          _error = e.toString();
+          if (e is GatewayException && e.statusCode == 429) {
+            _retryAt = _now.add(Duration(seconds: e.retryAfter));
+          }
+          if (e is GatewayException && e.statusCode == 401) _api = null;
+        });
+        _tickRetry();
       }
     } finally {
-      if (mounted && attempt == _generation) setState(() => _busy = false);
+      if (mounted && attempt == _generation) {
+        setState(() => _busy = false);
+        _scheduleSync();
+      }
     }
   }
 
@@ -162,7 +316,7 @@ class _GatewayScreenState extends State<GatewayScreen> {
     final data = _overview;
     if (data == null) {
       return _card('让每个请求都有迹可循', [
-        const Text('网站与 App 共享网关状态、限流和请求记录。先到连接设置中配置你的实例。'),
+        const Text('1. 连接你的网关实例\n2. 在试验台发送一条消息\n3. 打开 HTML 网站，查看自动同步的请求记录'),
         const SizedBox(height: 20),
         FilledButton(
           onPressed: () => setState(() => _tab = 2),
@@ -188,7 +342,7 @@ class _GatewayScreenState extends State<GatewayScreen> {
             label: Text(
               data['provider'] == 'mock'
                   ? '本地模拟模型 · 无 API 费用'
-                  : '真实 OpenAI 兼容上游',
+                  : '真实上游 · 会产生 API 费用',
             ),
           ),
           const SizedBox(height: 8),
@@ -226,7 +380,7 @@ class _GatewayScreenState extends State<GatewayScreen> {
                 color: event['status'] < 400 ? Colors.teal : Colors.red,
               ),
               title: Text(
-                '${event['status']} · ${event['provider']} · ${event['cached'] ? 'HIT' : 'MISS'}',
+                '${event['status']} · ${_sourceName(event['source'])} · ${event['cached'] ? 'HIT' : 'MISS'}',
                 style: const TextStyle(fontSize: 13),
               ),
               subtitle: Text(
@@ -235,6 +389,23 @@ class _GatewayScreenState extends State<GatewayScreen> {
               ),
               trailing: Text('${event['latency_ms']} ms'),
               isThreeLine: true,
+              onTap: () => showDialog<void>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('请求详情'),
+                  content: SingleChildScrollView(
+                    child: SelectableText(
+                      '请求 ID：${event['id']}\n来源：${_sourceName(event['source'])}\n模式：${event['provider']}\n服务节点：${event['served_by']}\n耗时：${event['latency_ms']} ms',
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('关闭'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ]),
@@ -274,9 +445,15 @@ class _GatewayScreenState extends State<GatewayScreen> {
     ),
     const SizedBox(height: 12),
     FilledButton.icon(
-      onPressed: _busy || _api == null ? null : _send,
+      onPressed: _busy || _api == null || _retryRemaining > 0 ? null : _send,
       icon: const Icon(Icons.north_east),
-      label: const Text('发送请求'),
+      label: Text(
+        _busy
+            ? '请求中…'
+            : _retryRemaining > 0
+            ? '$_retryRemaining 秒后可重试'
+            : '发送请求',
+      ),
     ),
     if (_api == null)
       const Padding(
@@ -285,6 +462,14 @@ class _GatewayScreenState extends State<GatewayScreen> {
       ),
     const Divider(height: 32),
     Text(_replyMeta, style: const TextStyle(color: Colors.teal, fontSize: 11)),
+    if (_replyId != null)
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: SelectableText(
+          '请求 ID：$_replyId',
+          style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
+        ),
+      ),
     const SizedBox(height: 12),
     SelectableText(_reply),
   ]);
@@ -318,19 +503,7 @@ class _GatewayScreenState extends State<GatewayScreen> {
           child: const Text('连接实例'),
         ),
         TextButton(
-          onPressed: _busy
-              ? null
-              : () {
-                  _generation++;
-                  setState(() {
-                    _api = null;
-                    _overview = null;
-                    _token.clear();
-                    _error = null;
-                    _reply = '已断开连接。';
-                    _replyMeta = '';
-                  });
-                },
+          onPressed: _busy ? null : _disconnect,
           child: const Text('断开并清除令牌'),
         ),
       ],
@@ -361,12 +534,12 @@ class _GatewayScreenState extends State<GatewayScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               if (_busy) const LinearProgressIndicator(),
-              if (_error != null)
+              if (_error != null || _syncError != null)
                 Card(
                   color: Theme.of(context).colorScheme.errorContainer,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text(_error!),
+                    child: SelectableText(_error ?? _syncError!),
                   ),
                 ),
               Padding(
@@ -376,6 +549,26 @@ class _GatewayScreenState extends State<GatewayScreen> {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
+              if (_api != null || _overview != null)
+                SwitchListTile.adaptive(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  title: const Text('自动同步', style: TextStyle(fontSize: 13)),
+                  subtitle: Text(
+                    '${_syncError != null
+                        ? '同步中断 · 当前为上次数据'
+                        : _autoSync
+                        ? '每 5 秒同步，后台暂停'
+                        : '已暂停自动同步'}${_lastSynced == null ? '' : '\n最近同步 ${_formatTime(_lastSynced!)}'}',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  value: _autoSync,
+                  onChanged: _api == null
+                      ? null
+                      : (value) {
+                          setState(() => _autoSync = value);
+                          _scheduleSync();
+                        },
+                ),
               [_overviewView, _playgroundView, _settingsView][_tab](),
             ],
           ),
