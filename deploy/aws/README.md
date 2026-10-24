@@ -1,6 +1,6 @@
 # AWS 虚拟机 + K3s + HTTPS 部署草案
 
-此目录是**可审查的部署配置，不是已经上线的网站**。目前没有 AWS 账户，未运行真实 `terraform plan/apply`，未创建收费资源或签发证书。默认单机，不能承诺高可用 SLA。
+此目录是**新建 Ubuntu EC2 的可审查配置，不是已经上线的网站**。现已提供一台 Amazon Linux 2023 EC2，但 SSH 尚未连通；本模块不会接管或重建那台已有实例。未运行真实 `terraform plan/apply`，未创建额外收费资源或签发证书。默认单机，不能承诺高可用 SLA。
 
 ## 先完成账户与成本准备
 
@@ -28,14 +28,14 @@ https://你拥有的域名:443
 - 本 PR 已通过审查并合并到 main。
 - 手动运行 `Publish reviewed gateway image` workflow，记录 Summary 中的 `ghcr.io/...@sha256:...`。
 - 首次 GHCR 发布后，检查 package 的可见性，确认镜像可匿名拉取；公开仓库不等于 package 必然公开。当前配置不把 registry 密码放进云主机。
-- `release_commit` 必须是包含部署脚本的、已审查合并的完整 commit SHA。`gateway_image` 必须来自该发布的 digest，不接受 `latest`。
+- `release_commit` 必须是包含部署脚本的、已审查合并的完整 commit SHA。`gateway_image` 必须来自该发布的 digest，不接受 `latest`。`ami_id` 必须是区域内经过审阅的固定 Ubuntu 24.04 AMI；不自动选择最新镜像，避免上游发布镜像导致状态盘被意外替换。
 
 ## 在有凭证的受信任终端操作
 
 ```bash
 cd deploy/aws
 cp terraform.tfvars.example terraform.tfvars
-# 用编辑器填写区域、域名、邮箱、预算、commit 和镜像 digest。
+# 用编辑器填写区域、固定 AMI、域名、邮箱、预算、commit 和镜像 digest。
 terraform init
 terraform plan -out=reviewed.tfplan
 # 先审阅费用、区域、资源数量、权限和输出，再由账户持有人批准执行。
@@ -66,8 +66,8 @@ python3 scripts/render_cloud.py --domain 你拥有的域名 --email 你的联系
 
 - 先在独立环境验证新镜像，再用 `kubectl -n harbor set image deployment/gateway gateway=完整digest` 更新，观察 `rollout status`。应用回滚可用 `rollout undo`，但不能回退已发生的数据变更。
 - 在每次云主机替换/销毁前备份 Redis、k3s 状态与本地凭证，并演练恢复。这里只配置了磁盘加密，**没有自动备份或跨 AZ 容灾**。
-- `user_data_replace_on_change=true` 可能触发整台 VM 替换；`terraform apply` 前审阅 plan。Redis PVC 在该节点本地，替换根盘会丢数据。
-- 不再使用时，备份后执行 `terraform plan -destroy` 审阅清单，再由账户持有人执行销毁。停止 EC2 并不自动停止 EBS/IPv4 等费用，清理后检查 Billing。
+- `user_data_replace_on_change=true` 可能触发 VM 替换，因此配置启用 `prevent_destroy`，并设置根盘不随终止删除。AMI 已固定，升级必须明确修改输入；迁移或销毁前，先备份、演练恢复并审查移除保护的变更，不能直接重建单机状态。
+- 不再使用时，先备份并显式审阅移除销毁保护，再执行 `terraform plan -destroy`。账户持有人批准后才能销毁。保留的根盘需要另行审查清理；停止 EC2 并不停止 EBS/IPv4 等费用，清理后检查 Billing。
 
 ## 当前验证范围
 

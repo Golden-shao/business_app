@@ -9,6 +9,7 @@ mock_provider "aws" {
 
 variables {
   aws_region         = "ap-southeast-1"
+  ami_id             = "ami-0123456789abcdef0"
   domain             = "gateway.harbor-demo.org"
   acme_email         = "ops@harbor-demo.org"
   gateway_image      = "ghcr.io/golden-shao/business_app/gateway@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -23,7 +24,7 @@ run "public_entrypoint_and_instance_boundary" {
     error_message = "Only HTTP/HTTPS may be exposed; never SSH, Redis, NodePort or Kubernetes API."
   }
   assert {
-    condition     = aws_instance.gateway.metadata_options[0].http_tokens == "required" && aws_instance.gateway.metadata_options[0].http_put_response_hop_limit == 1 && aws_instance.gateway.root_block_device[0].encrypted
+    condition     = aws_instance.gateway.metadata_options[0].http_tokens == "required" && aws_instance.gateway.metadata_options[0].http_put_response_hop_limit == 1 && aws_instance.gateway.root_block_device[0].encrypted && !aws_instance.gateway.root_block_device[0].delete_on_termination && aws_instance.gateway.ami == var.ami_id
     error_message = "Require IMDSv2, keep instance credentials away from Pods, and encrypt disk."
   }
   assert {

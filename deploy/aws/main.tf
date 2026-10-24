@@ -3,8 +3,11 @@ data "aws_availability_zones" "available" {
 }
 
 data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"]
+  owners = ["099720109477"]
+  filter {
+    name   = "image-id"
+    values = [var.ami_id]
+  }
   filter {
     name   = "name"
     values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
@@ -104,9 +107,13 @@ resource "aws_instance" "gateway" {
     http_put_response_hop_limit = 1
   }
   root_block_device {
-    encrypted   = true
-    volume_type = "gp3"
-    volume_size = 30
+    encrypted             = true
+    volume_type           = "gp3"
+    volume_size           = 30
+    delete_on_termination = false
+  }
+  lifecycle {
+    prevent_destroy = true
   }
   tags       = { Name = "harbor-gateway" }
   depends_on = [aws_route_table_association.public, aws_iam_role_policy_attachment.ssm]

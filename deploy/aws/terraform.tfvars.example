@@ -1,5 +1,6 @@
 # Copy to terraform.tfvars (ignored by Git), then replace every placeholder.
 aws_region         = "ap-southeast-1"
+ami_id             = "REPLACE_WITH_PINNED_UBUNTU_24_AMI"
 domain             = "gateway.example.com"
 acme_email         = "operator@example.com"
 monthly_budget_usd = 0 # Set your approved positive alert budget. NOT a spending cap.

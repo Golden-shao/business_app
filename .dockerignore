@@ -7,3 +7,11 @@ ios
 android
 gateway/.pytest_cache
 **/__pycache__
+.local
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/terraform.tfvars
+.aws
+.ssh

@@ -4,13 +4,15 @@
 
 ## 合并约束
 
-main 通过 GitHub 分支保护执行 PR、必需 CI、独立批准、最新推送批准及对话解决，管理员也不能直接绕过。禁止强推和删除 main。新增功能在分支中开发，经 PR 合并。
+main 通过 GitHub 分支保护执行 PR、必需 CI、独立 AI 结果及对话解决，管理员也不能直接绕过。禁止强推和删除 main。新增功能在分支中开发，经 PR 合并。独立 Bot 的当前提交结论通过必需状态 `Harbor / AI review` 实施，不能用 CI job 为绿色代替该状态。
 
-本次准备了 `Harbor / AI review` 门禁。它只认可 `chatgpt-codex-connector[bot]` 在**当前 PR head SHA** 上的正式 APPROVED review；旧批准、COMMENTED、表情、普通用户或本聊天里的“审查通过”不会放行。新的 findings/撤销会阻止通过。workflow 不 checkout 或执行 PR 代码，只查询 GitHub review 元数据。
+`Harbor / AI review` 只信任 `chatgpt-codex-connector[bot]` 的 Bot 身份和**当前 PR head SHA**。它接受正式 APPROVED，或该 Bot 的版本化机器可读摘要明确报告 completed、无任何 findings、无 unresolved findings；旧提交、普通文字 LGTM、表情、未知格式、普通用户伪造的摘要均不放行。摘要格式变化时保持阻止。新的发现/撤销会阻止通过。
 
-**尚需接通真实审查身份**：在 [Codex code review 设置](https://chatgpt.com/codex/settings/code-review) 中连接该仓库并开启审查，然后在 PR 请求 `@codex review`。[官方文档](https://learn.chatgpt.com/docs/third-party/github) 说明了审查与 AGENTS.md 规则，但没有保证每种集成都产生 APPROVED；如果当前集成仅发布 COMMENTED，就不能满足本门禁，必须先采用能够正式批准的独立审查配置再推进合并，不能伪造 Bot 的身份、把 COMMENTED 当批准或自动绕过。
+已在 PR #1 观察到真实 Codex Bot 的独立审查与结构化摘要。审查入口为 [Codex code review 设置](https://chatgpt.com/codex/settings/code-review)，可在 PR 请求 `@codex review`。[官方文档](https://learn.chatgpt.com/docs/third-party/github) 说明了审查与 AGENTS.md 规则。不是把 COMMENTED 自动当作 APPROVED，而是验证该 Bot 单独发布的明确、当前提交、无发现的审查结论；两者在报告中区分。
 
-GitHub 也不能由 PR 作者批准自己的 PR。因此，当前用户身份下的编码助手提交，不等于一个独立审查账号。该限制会让首次配置 PR 保持阻止状态，直到实际审查接入完成。当前 PR 不会被自动合并。
+状态发布器仅运行于 `pull_request_target` 和 PR 的 `issue_comment` 事件，从可信 base/default 分支读取 workflow；不使用加载 PR 代码的 `pull_request_review` 写权限流程，也不 checkout 或执行 PR 代码。因此 fork 的 review 通知同样由可信、可写上下文重新评估。首次安装 workflow 尚不在 main 时，由维护者执行同一判定代码查询真实 Bot 结果同步一次状态，不可手工宣称审查通过。
+
+GitHub 不允许作者正式批准自己的 PR。本项目不伪造该批准：单维护者模式额外的人工批准数为 0，但强制独立 AI 状态与 CI。扩展维护团队后可另外要求人工批准。拥有仓库写权限的成员属于受信任维护者，应严格审核新增 workflow 的权限；分支规则不等于对恶意仓库管理员的隔离。
 
 ## 维护者与社区的职责
 

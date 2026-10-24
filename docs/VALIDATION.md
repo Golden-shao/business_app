@@ -41,6 +41,6 @@
 - 后端与云配置单元测试 20 项通过；新增测试验证云端 TLS 路由结构、不可变镜像、占位/注入输入拒绝、凭证初始化权限与幂等性及 workflow YAML 解析。
 - Terraform 1.13.4 / AWS provider 6.70.0：fmt、validate 与 4 项 mock-provider plan 测试通过；未使用 AWS 账户或创建实际资源。
 - 渲染出 12 项云资源；其中 10 项标准 Kubernetes 资源通过 1.35.0 严格 schema 校验。ClusterIssuer 与 Traefik Middleware 为额外 CRD，仅验证生成结构，没有据此宣称真实控制器工作。
-- 独立审查门禁的 2 项 Node 测试通过，直接执行 workflow 中的判定代码，覆盖正式批准、评论、旧 head、伪造用户、撤销和新 findings。
-- 尚无 AWS 账户、已确认域名或部署预算，未完成 EC2 实机、DNS、受信任证书、SSM 或公网网站验收。
-- Codex 自动审查仍需要在用户账户中接入并验证；没有真实 Bot 对当前提交的 APPROVED，AI 门禁保持阻止状态。不能把这份报告当作独立批准。
+- 独立审查门禁的 5 项 Node 测试通过，直接执行 workflow 中的判定代码，覆盖正式批准、真实结构化 Bot 摘要、旧 head、伪造用户、未知状态、撤销和新 findings，并限制可信事件来源。
+- 用户已提供一台 Amazon Linux 2023 / t3.micro EC2 和本机私钥路径。Windows 与 WSL 的 SSH 22 连接均超时，未到认证阶段；没有修改该实例。域名、扩容预算与网络放行仍待确认。
+- 已观察到独立 Codex Bot 对 PR #1 的审查，发现并准备修复不可信 review 事件发布状态、AMI 自动更新造成替换的风险。旧 head 的 review 不计入当前提交的结论，修复后仍需重新审查。

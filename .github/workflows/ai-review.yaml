@@ -1,33 +1,52 @@
-name: Independent AI review gate
+﻿name: Independent AI review gate
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
-  pull_request_review:
-    types: [submitted, edited, dismissed]
+  issue_comment:
+    types: [created, edited, deleted]
 permissions:
   contents: read
   pull-requests: read
   statuses: write
 concurrency:
-  group: ai-review-${{ github.event.pull_request.number }}
+  group: ai-review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 jobs:
   ai-review:
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
-      # No checkout and no execution of PR code. Read reviews from GitHub only.
+      # Both events load the trusted base/default-branch workflow. Never use
+      # pull_request_review here: its workflow comes from the PR merge ref.
+      # No checkout, secrets, build, or execution of contributor code.
       - uses: actions/github-script@v7
         with:
           script: |
             const {owner, repo} = context.repo;
-            const number = context.payload.pull_request.number;
+            const number = context.payload.pull_request?.number || context.payload.issue.number;
             const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            if (pr.state && pr.state !== 'open') return;
             const reviews = await github.paginate(github.rest.pulls.listReviews, {owner, repo, pull_number: number, per_page: 100});
-            const trusted = 'chatgpt-codex-connector[bot]';
-            const current = reviews.filter(r => r.user?.login === trusted && r.user?.type === 'Bot' && r.commit_id === pr.head.sha);
+            const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number: number, per_page: 100});
+            const trusted = user => user?.login === 'chatgpt-codex-connector[bot]' && user?.type === 'Bot';
+            const current = reviews.filter(r => trusted(r.user) && r.commit_id === pr.head.sha);
             const decision = current.at(-1);
-            const state = decision?.state === 'APPROVED' ? 'success' : decision?.state === 'CHANGES_REQUESTED' ? 'failure' : 'pending';
+            let state = decision?.state === 'APPROVED' ? 'success' : decision?.state === 'CHANGES_REQUESTED' ? 'failure' : 'pending';
+            let evidence = decision?.html_url || pr.html_url;
+            for (const comment of comments) {
+              if (!trusted(comment.user) || !comment.body?.startsWith('<!-- codex-pull-request-review-summary -->')) continue;
+              const match = comment.body.match(/<!-- codex-review-state:v1 (\{[^\n]*\}) -->/);
+              if (!match) continue;
+              let report;
+              try { report = JSON.parse(match[1]); } catch { continue; }
+              const code = report.code_review;
+              if (code?.commit_sha !== pr.head.sha) continue;
+              evidence = comment.html_url;
+              if (code.has_any_findings === true || code.has_unresolved_findings === true) state = 'failure';
+              else if (code.status === 'completed' && code.has_any_findings === false && code.has_unresolved_findings === false && decision?.state !== 'CHANGES_REQUESTED') state = 'success';
+              else state = 'pending';
+            }
             await github.rest.repos.createCommitStatus({owner, repo, sha: pr.head.sha,
-              context: 'Harbor / AI review', state, target_url: decision?.html_url || pr.html_url,
-              description: state === 'success' ? 'Independent Codex approval verified for this exact head' : 'Waiting for independent Codex APPROVED review on this exact head'});
-            if (state !== 'success') core.notice('Merge remains blocked. Comments, reactions, old-head approvals and this chat do not satisfy independent approval. Configure the review integration; never fabricate approval.');
+              context: 'Harbor / AI review', state, target_url: evidence,
+              description: state === 'success' ? 'Independent Codex review passed for this exact head' : 'Waiting for a clean independent Codex review of this exact head'});
+            if (state !== 'success') core.notice('Merge remains blocked: untrusted comments, emoji, unknown formats, old heads and unresolved findings never count as a clean AI review.');

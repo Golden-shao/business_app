@@ -114,7 +114,7 @@ docker compose ps
 
 ## 本地 Kubernetes
 
-正式云入口的配置草案见 [AWS EC2 + K3s + HTTPS](deploy/aws/README.md)。对外使用标准 HTTPS 443；当前尚无 AWS 账户，没有创建云资源、域名或实际部署公网网站。请勿将目标 URL 当作已上线地址。
+正式云入口的配置草案见 [AWS EC2 + K3s + HTTPS](deploy/aws/README.md)。对外使用标准 HTTPS 443；已有 EC2 尚未连通，本项目没有新建云资源、配置域名或完成公网部署。请勿将目标 URL 当作已上线地址。
 
 需要 Docker、[kind](https://kind.sigs.k8s.io/docs/user/quick-start/) 与 [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)，无需云账号。
 

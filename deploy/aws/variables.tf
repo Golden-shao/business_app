@@ -3,6 +3,15 @@ variable "aws_region" {
   description = "Choose a region explicitly after reviewing price and latency."
 }
 
+variable "ami_id" {
+  type        = string
+  description = "Explicit reviewed Ubuntu 24.04 x86 AMI in the chosen region; never a moving latest-image lookup."
+  validation {
+    condition     = can(regex("^ami-([a-f0-9]{8}|[a-f0-9]{17})$", var.ami_id))
+    error_message = "Pin a region-specific Ubuntu 24.04 x86 AMI ID before planning."
+  }
+}
+
 variable "domain" {
   type = string
   validation {
