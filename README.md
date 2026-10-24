@@ -32,7 +32,7 @@ flowchart LR
 在 Ubuntu Bash 中运行：
 
 ```bash
-cd "/mnt/d/My Project/business_app"
+cd "/mnt/d/My Project/harbor"
 sudo apt-get update
 sudo apt-get install -y python3-venv redis-server fonts-noto-cjk
 sudo service redis-server start
@@ -53,7 +53,7 @@ uvicorn app.main:create_app --factory --app-dir gateway --host 127.0.0.1 --port 
 
 ```bash
 source ~/.bashrc
-cd "/mnt/d/My Project/business_app"
+cd "/mnt/d/My Project/harbor"
 flutter pub get
 flutter run -d chrome --web-port 7357
 ```
