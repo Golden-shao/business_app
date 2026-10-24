@@ -1,0 +1,9 @@
+.git
+.env
+.venv
+.dart_tool
+build
+ios
+android
+gateway/.pytest_cache
+**/__pycache__

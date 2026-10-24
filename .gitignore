@@ -46,3 +46,12 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Gateway local credentials and runtime
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.rdb
+dump.rdb
+.local/

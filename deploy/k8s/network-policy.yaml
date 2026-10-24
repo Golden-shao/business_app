@@ -1,0 +1,20 @@
+# Requires a CNI implementing NetworkPolicy. kind's default kindnet does not.
+# Local cluster only: do not expose Redis outside the cluster.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-from-gateway
+  namespace: harbor
+spec:
+  podSelector:
+    matchLabels:
+      app: harbor-redis
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: harbor-gateway
+      ports:
+        - protocol: TCP
+          port: 6379

@@ -1,0 +1,41 @@
+name: checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r gateway/requirements-dev.txt
+      - run: python -m pytest gateway/tests -q
+        env:
+          PYTHONPATH: gateway
+      - run: docker build -f gateway/Dockerfile -t harbor-gateway:test .
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.35.0'
+      - run: kubectl kustomize deploy/k8s > /tmp/harbor.yaml
+      - name: Validate Kubernetes schemas
+        run: |
+          go install github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0
+          "$(go env GOPATH)/bin/kubeconform" -strict -summary -kubernetes-version 1.35.0 /tmp/harbor.yaml deploy/k8s/hpa.yaml
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101c26">
+  <title>Harbor · AI Gateway</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="Harbor 首页"><span class="brand-mark">H</span> harbor<span class="brand-dot">.</span></a>
+    <div class="workspace"><span class="workspace-icon">⌘</span><div>Personal workspace<small>SELF-HOSTED / v0.1</small></div></div>
+    <div class="nav-label">CONTROL PLANE</div>
+    <nav aria-label="主导航">
+      <a href="#overview" class="active"><span>◈</span>网关概览</a>
+      <a href="#playground"><span>▷</span>请求试验台</a>
+      <a href="#requests"><span>≡</span>请求记录</a>
+      <a href="#connection"><span>⚙</span>连接设置</a>
+    </nav>
+    <div class="sidebar-bottom"><span class="tiny-dot"></span> Built to run on your terms.<small>Open source · Kubernetes ready</small></div>
+  </aside>
+  <main>
+    <header><div class="breadcrumbs">Workspace <span>/</span> Overview</div><div class="header-right"><span class="outline-badge">SELF-HOSTED</span><span class="avatar">GS</span></div></header>
+    <section id="overview" class="page-heading"><div><div class="eyebrow">YOUR MODELS. YOUR INFRASTRUCTURE.</div><h1>每个请求，都有迹可循<span>.</span></h1><p>一个入口连接模型，让网站与 App 共享同一份运行状态。</p></div><button id="refresh" class="button secondary">↻ 刷新状态</button></section>
+    <div class="status-strip"><div><span id="connection-dot" class="tiny-dot muted"></span><strong id="connection-status" role="status">等待连接</strong><span class="strip-separator">/</span><span id="provider-label">尚未读取服务配置</span></div><span id="last-updated">未同步</span></div>
+    <section class="metrics" aria-label="运行指标">
+      <article class="metric"><span class="metric-label">累计请求 <span>↗</span></span><strong id="requests-count">—</strong><small>所有副本共享 · 含限流请求</small></article>
+      <article class="metric"><span class="metric-label">成功率 <span>◎</span></span><strong id="success-rate">—</strong><small>已记录请求的成功比例</small></article>
+      <article class="metric"><span class="metric-label">平均网关耗时 <span>◷</span></span><strong id="latency">—</strong><small>含上游等待 · 单位 ms</small></article>
+      <article class="metric"><span class="metric-label">缓存命中 <span>▤</span></span><strong id="cache-hits">—</strong><small id="cache-description">基于相同请求内容</small></article>
+    </section>
+    <div class="main-grid">
+      <section id="playground" class="panel playground"><div class="panel-heading"><div><span class="eyebrow">PLAYGROUND</span><h2>发出第一个请求</h2></div><span class="tag">gateway-default</span></div><p class="section-description">从这里验证完整链路，再到 iOS App 刷新查看记录。</p>
+        <form id="prompt-form"><label for="prompt">消息内容</label><textarea id="prompt" rows="4" maxlength="12000" required placeholder="例如：用三句话解释 Kubernetes 的 Service。">用三句话解释 Kubernetes 的 Service。</textarea><div class="form-footer"><span id="quota-label">限流与缓存由服务端统一管理</span><button id="send" class="button primary" type="submit">发送请求 <span>↗</span></button></div></form>
+        <div class="response-heading"><span>RESPONSE</span><span id="response-meta">尚未发送请求</span></div><pre id="response" aria-live="polite">连接你的网关，试着发送一条消息。
+
+默认使用本地模拟模型，不产生模型 API 费用。</pre>
+      </section>
+      <div class="right-column"><section id="connection" class="panel connection"><div class="panel-heading"><div><span class="eyebrow">CONNECTION</span><h2>连接你的实例</h2></div><span class="connection-symbol">⌁</span></div><p class="section-description">此网页与 API 同源部署。管理令牌仅保留在当前页面内存中。</p><form id="connection-form"><label for="endpoint">实例地址</label><input id="endpoint" readonly aria-describedby="endpoint-help"><small id="endpoint-help">iOS App 也连接此服务；真机请使用可达的 HTTPS 地址。</small><label for="token">管理令牌 · ADMIN_TOKEN</label><input id="token" type="password" autocomplete="off" placeholder="粘贴 .env 中的 ADMIN_TOKEN" required minlength="16"><div class="connection-actions"><button class="button secondary" type="submit">连接实例</button><button class="text-button" id="disconnect" type="button">断开</button></div></form><p id="error" role="alert" hidden></p></section>
+      <section class="learning-card"><div class="eyebrow">A SMALL GATEWAY. A REAL SYSTEM.</div><h2>从一个请求，<br>走向一个集群。</h2><p>先跑通本地链路，再练习多副本、滚动更新与自动扩缩容。</p><div class="learning-tags"><span>Deployment</span><span>Redis</span><span>HPA</span></div><div class="learning-footer">01 <span>BUILD IN THE OPEN</span><span>↗</span></div></section></div>
+    </div>
+    <section id="requests" class="panel requests"><div class="panel-heading"><div><span class="eyebrow">SHARED ACTIVITY</span><h2>最近的请求</h2></div><span id="request-note" class="subtle">最近 20 条 · 不记录消息正文</span></div><div class="table-wrap"><table><thead><tr><th>请求 ID</th><th>时间</th><th>来源模型</th><th>状态</th><th>耗时</th><th>缓存</th><th>服务节点</th></tr></thead><tbody id="request-rows"><tr><td colspan="7" class="empty">暂无数据。连接实例后查看网站与 App 的共享请求记录。</td></tr></tbody></table></div></section>
+    <footer><span>HARBOR / AI GATEWAY</span><span>掌握入口，也掌握你的数据。</span><span>v0.1.0 · Single tenant</span></footer>
+  </main>
+</body>
+</html>
