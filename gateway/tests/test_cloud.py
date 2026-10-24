@@ -67,3 +67,9 @@ def test_instance_credentials_are_private_and_not_rotated_on_rerun(tmp_path):
     assert first == second
     assert first['ADMIN_TOKEN'] != first['GATEWAY_TOKEN']
     assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_workflow_documents_parse_before_upload_to_github():
+    for path in (ROOT / '.github/workflows').glob('*.yaml'):
+        document = yaml.safe_load(path.read_text())
+        assert isinstance(document.get('jobs'), dict), path.name

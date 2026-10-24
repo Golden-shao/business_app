@@ -38,7 +38,7 @@
 
 - GitHub 仓库可见性已从 private 改为 public，main 已配置 PR、检查、独立批准与禁止强推规则；当前远端状态需以 GitHub 设置为准。
 - 初次公开前扫描了现有 3 个提交、115 个唯一 blob：未发现本地令牌、常见云密钥标记或私钥块；这不是完整安全审计。
-- 后端与云配置单元测试 19 项通过；新增测试验证云端 TLS 路由结构、不可变镜像、占位/注入输入拒绝及凭证初始化权限与幂等性。
+- 后端与云配置单元测试 20 项通过；新增测试验证云端 TLS 路由结构、不可变镜像、占位/注入输入拒绝、凭证初始化权限与幂等性及 workflow YAML 解析。
 - Terraform 1.13.4 / AWS provider 6.70.0：fmt、validate 与 4 项 mock-provider plan 测试通过；未使用 AWS 账户或创建实际资源。
 - 渲染出 12 项云资源；其中 10 项标准 Kubernetes 资源通过 1.35.0 严格 schema 校验。ClusterIssuer 与 Traefik Middleware 为额外 CRD，仅验证生成结构，没有据此宣称真实控制器工作。
 - 独立审查门禁的 2 项 Node 测试通过，直接执行 workflow 中的判定代码，覆盖正式批准、评论、旧 head、伪造用户、撤销和新 findings。

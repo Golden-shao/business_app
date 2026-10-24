@@ -34,4 +34,5 @@ jobs:
         env:
           IMAGE: ${{ steps.image.outputs.name }}
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: echo "Deployment image: \`$IMAGE@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "Deployment image: \`$IMAGE@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
