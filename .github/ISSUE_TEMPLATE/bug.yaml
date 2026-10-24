@@ -1,0 +1,20 @@
+name: Bug report
+description: Report a reproducible problem without sharing credentials or chat content.
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Include version and deployment method. Remove tokens, domains you do not want public, and message content.
+    validations:
+      required: true
+  - type: input
+    id: request_id
+    attributes:
+      label: Request ID (optional)

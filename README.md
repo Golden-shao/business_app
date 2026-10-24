@@ -1,6 +1,8 @@
 # Harbor AI Gateway
 
-开源、自托管的单租户 AI 网关：用一个小而完整的系统学习 Kubernetes，附带独立 HTML 管理台和 Flutter iOS 客户端。
+面向个人开发者与小团队的开源、自托管 AI 网关，提供独立 HTML 管理台、Flutter iOS 客户端和 Kubernetes 部署路径。
+
+使用者通过网站、API 和 App 连接自己的模型实例；K8s 学习是维护者的实现路径，不是使用门槛。[产品定位与有限竞品调研](docs/POSITIONING.md) / [开源与审查规则](docs/GOVERNANCE.md)。
 
 **v0.1.1 学习与开发版。默认本地模拟模型，无需云账号或付费 API。** Harbor 是工作名，与 CNCF Harbor 镜像仓库无关联。
 
@@ -111,6 +113,8 @@ docker compose ps
 网站仍在 http://localhost:8000，端口只绑定本机。Redis 数据卷在 `docker compose down` 后保留。
 
 ## 本地 Kubernetes
+
+正式云入口的配置草案见 [AWS EC2 + K3s + HTTPS](deploy/aws/README.md)。对外使用标准 HTTPS 443；已有 EC2 尚未连通，本项目没有新建云资源、配置域名或完成公网部署。请勿将目标 URL 当作已上线地址。
 
 需要 Docker、[kind](https://kind.sigs.k8s.io/docs/user/quick-start/) 与 [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)，无需云账号。
 

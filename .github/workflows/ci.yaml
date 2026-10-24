@@ -5,6 +5,17 @@ on:
 permissions:
   contents: read
 jobs:
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.13.4'
+      - run: terraform -chdir=deploy/aws fmt -check -recursive
+      - run: terraform -chdir=deploy/aws init -backend=false -input=false
+      - run: terraform -chdir=deploy/aws validate
+      - run: terraform -chdir=deploy/aws test
   gateway:
     runs-on: ubuntu-latest
     steps:
@@ -12,6 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: node --test .github/scripts/test-review-gate.cjs
       - run: pip install -r gateway/requirements-dev.txt
       - run: python -m pytest gateway/tests -q
         env:

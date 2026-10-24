@@ -55,3 +55,9 @@ __pycache__/
 *.rdb
 dump.rdb
 .local/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+crash.log

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+exec > >(tee -a /var/log/harbor-bootstrap.log) 2>&1
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y curl ca-certificates git python3 python3-yaml
+
+# This does not contain AWS, admin or upstream secrets.
+curl --fail --location --retry 3 "https://raw.githubusercontent.com/k3s-io/k3s/${k3s_version}/install.sh" -o /root/install-k3s.sh
+INSTALL_K3S_VERSION='${k3s_version}' sh /root/install-k3s.sh server --write-kubeconfig-mode 600
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+kubectl wait --for=condition=Ready node --all --timeout=180s
+
+kubectl apply -f 'https://github.com/cert-manager/cert-manager/releases/download/${cert_manager_version}/cert-manager.yaml'
+kubectl -n cert-manager rollout status deployment/cert-manager --timeout=180s
+kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=180s
+kubectl -n cert-manager rollout status deployment/cert-manager-cainjector --timeout=180s
+
+git init /opt/harbor
+git -C /opt/harbor remote add origin https://github.com/Golden-shao/business_app.git
+git -C /opt/harbor fetch --depth 1 origin '${release_commit}'
+git -C /opt/harbor checkout --detach FETCH_HEAD
+cd /opt/harbor
+kubectl apply -f deploy/k8s/namespace.yaml
+python3 scripts/cloud_credentials.py
+python3 scripts/render_cloud.py --domain '${domain}' --email '${acme_email}' --image '${gateway_image}' > /root/harbor-cloud.json
+kubectl apply -f /root/harbor-cloud.json
+kubectl -n harbor rollout status statefulset/redis --timeout=300s
+kubectl -n harbor rollout status deployment/gateway --timeout=300s
+printf '%s\n' 'Workloads configured. Point DNS to the Elastic IP, then verify TLS issuance and HTTPS before publishing the URL.'
