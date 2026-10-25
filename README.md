@@ -1,10 +1,10 @@
-# Harbor AI Gateway
+# ModelJetty AI Gateway
 
 面向个人开发者与小团队的开源、自托管 AI 网关，提供独立 HTML 管理台、Flutter iOS 客户端和 Kubernetes 部署路径。
 
 使用者通过网站、API 和 App 连接自己的模型实例；K8s 学习是维护者的实现路径，不是使用门槛。[产品定位与有限竞品调研](docs/POSITIONING.md) / [开源与审查规则](docs/GOVERNANCE.md)。
 
-**v0.1.1 学习与开发版。默认本地模拟模型，无需云账号或付费 API。** Harbor 是工作名，与 CNCF Harbor 镜像仓库无关联。
+**v0.1.1 学习与开发版。默认本地模拟模型，无需云账号或付费 API。** ModelJetty（模型码头）是一个可自托管的模型连接与请求诊断网关。
 
 ## 能力
 
@@ -182,3 +182,11 @@ docs/ROADMAP.md    发展目标和阶段验收
 ```
 
 参见 [产品决策与优先级](docs/PRODUCT.md)、[路线图](docs/ROADMAP.md)、[验证记录与限制](docs/VALIDATION.md)、[贡献指南](CONTRIBUTING.md) 和 [安全说明](SECURITY.md)。许可：[MIT](LICENSE)。
+
+## 项目名称与兼容性
+
+要先在已有的小型 EC2 上跑通公网访问，可使用 [虚拟机 HTTPS 预览部署](docs/VM_PREVIEW.md)。这是独立于 Kubernetes 的低流量验证路径。
+
+项目现名 **ModelJetty**，仓库为 [Golden-shao/modeljetty](https://github.com/Golden-shao/modeljetty)。已有本地目录无需改名；新克隆使用 `git clone https://github.com/Golden-shao/modeljetty.git`。
+
+为兼容现有实例，Kubernetes 命名空间、Redis 键前缀、应用包标识和 `X-Harbor-Client` 请求头继续使用原有技术标识。分支保护要求的 `Harbor / AI review` 状态名也保留，品牌更名不改变审核门禁。新发布镜像使用 `ghcr.io/golden-shao/modeljetty/gateway`；已有镜像不会随仓库自动更名。

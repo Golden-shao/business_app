@@ -1,6 +1,6 @@
 {
-    "name": "business_app",
-    "short_name": "business_app",
+    "name": "ModelJetty",
+    "short_name": "ModelJetty",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

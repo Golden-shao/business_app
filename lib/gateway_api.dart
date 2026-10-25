@@ -91,14 +91,14 @@ class GatewayApi {
       if (data is! Map<String, dynamic>) throw const FormatException();
       return data;
     } on FormatException {
-      throw const GatewayException('服务未返回有效的 JSON 数据，请确认连接的是 Harbor 网关。');
+      throw const GatewayException('服务未返回有效的 JSON 数据，请确认连接的是 ModelJetty 网关。');
     }
   }
 
   Future<Map<String, dynamic>> overview() async {
     final data = _decode(await _request('/api/overview'));
     if (data['stats'] is! Map || data['recent_requests'] is! List) {
-      throw const GatewayException('实例返回的数据不完整，请确认 Harbor 服务版本。');
+      throw const GatewayException('实例返回的数据不完整，请确认 ModelJetty 服务版本。');
     }
     return data;
   }

@@ -58,7 +58,7 @@ async function api(path, body) {
     }
     let data;
     try { data = await response.json(); } catch {
-      throw new ApiError('服务未返回有效的 JSON 数据，请确认连接的是 Harbor 网关。');
+      throw new ApiError('服务未返回有效的 JSON 数据，请确认连接的是 ModelJetty 网关。');
     }
     return {data, response};
   } catch (e) {
@@ -130,7 +130,7 @@ async function refresh() {
   task.promise = (async () => {
     const {data} = await api('/api/overview');
     if (current !== generation) return;
-    if (!data.stats || !Array.isArray(data.recent_requests)) throw new ApiError('实例返回的数据不完整，请确认 Harbor 服务版本。');
+    if (!data.stats || !Array.isArray(data.recent_requests)) throw new ApiError('实例返回的数据不完整，请确认 ModelJetty 服务版本。');
     connected = true;
     const stats = data.stats;
     $('requests-count').textContent = stats.requests.toLocaleString();

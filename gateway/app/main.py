@@ -81,7 +81,7 @@ def create_app(settings: Settings | None = None, store=None, upstream=None):
         if upstream is None:
             await app.state.upstream.aclose()
 
-    app = FastAPI(title='Harbor AI Gateway', version='0.1.1', lifespan=lifespan,
+    app = FastAPI(title='ModelJetty AI Gateway', version='0.1.1', lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(CORSMiddleware, allow_origins=config.cors_origins,
                        allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type', 'X-Harbor-Client'],

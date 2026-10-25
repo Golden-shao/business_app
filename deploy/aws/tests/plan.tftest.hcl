@@ -12,7 +12,7 @@ variables {
   ami_id             = "ami-0123456789abcdef0"
   domain             = "gateway.harbor-demo.org"
   acme_email         = "ops@harbor-demo.org"
-  gateway_image      = "ghcr.io/golden-shao/business_app/gateway@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  gateway_image      = "ghcr.io/golden-shao/modeljetty/gateway@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   release_commit     = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   monthly_budget_usd = 50
 }

@@ -117,7 +117,7 @@ def test_real_provider_mapping_and_errors_are_sanitized(status):
 
 def test_website_and_cors():
     with TestClient(app()) as client:
-        assert 'Harbor' in client.get('/').text
+        assert 'ModelJetty' in client.get('/').text
         assert client.get('/app.js').status_code == 200
         allowed = client.options('/api/overview', headers={'Origin': 'http://localhost:7357',
                                   'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'Authorization'})

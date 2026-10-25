@@ -1,8 +1,9 @@
-# Harbor contributor and review guidance
+# ModelJetty contributor and review guidance
 
 - Use a feature branch and PR for changes. `main` is protected; do not bypass required checks or reviews.
 - Users consume the API, website and App. Kubernetes concepts belong in operator documentation, not in ordinary user actions.
 - Run the affected tests and report platform limits. A valid manifest is not evidence of a successful AWS deployment.
+- Do not subscribe to paid services, enable paid model calls, create billable resources, or resize the existing EC2 instance. Use free dependencies and the existing host; Kubernetes migration remains deferred until resources are approved.
 
 ## Code Review Rules
 
