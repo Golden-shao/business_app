@@ -22,7 +22,7 @@ from redis.exceptions import RedisError
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+    model_config = SettingsConfigDict(env_file='.env', extra='ignore', hide_input_in_errors=True)
     admin_token: str = Field(min_length=16)
     gateway_token: str = Field(min_length=16)
     redis_url: str = 'redis://localhost:6379/0'
@@ -33,9 +33,12 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = Field(default=30, ge=1, le=10000)
     cache_ttl_seconds: int = Field(default=60, ge=0, le=3600)
     cors_origins: list[str] = ['http://localhost:7357']
+    public_demo_enabled: bool = False
 
     @model_validator(mode='after')
     def validate_provider(self):
+        if self.public_demo_enabled and self.provider != 'mock':
+            raise ValueError('Public demo requires the mock provider; paid upstreams are forbidden')
         if hmac.compare_digest(self.admin_token, self.gateway_token):
             raise ValueError('ADMIN_TOKEN and GATEWAY_TOKEN must differ')
         if self.provider == 'openai-compatible':
@@ -95,6 +98,14 @@ def create_app(settings: Settings | None = None, store=None, upstream=None):
 
     admin = auth(config.admin_token)
     client = auth(config.gateway_token)
+
+    @app.get('/api/public-config')
+    async def public_config():
+        return {'public_demo_enabled': config.public_demo_enabled}
+
+    if config.public_demo_enabled:
+        from .demo import register_demo
+        register_demo(app)
 
     @app.middleware('http')
     async def size_limit(request, call_next):

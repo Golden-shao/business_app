@@ -2,6 +2,8 @@
 const $ = (id) => document.getElementById(id);
 const sourceNames = {web: '网站', app: 'App', api: 'API'};
 let token = '';
+let demoMode = false;
+let demoCleanup = Promise.resolve();
 let generation = 0;
 let connected = false;
 let sending = false;
@@ -11,6 +13,12 @@ let countdownTimer = null;
 let retryAt = 0;
 const controllers = new Set();
 $('endpoint').value = location.origin;
+
+function setDemoMode(enabled) {
+  demoMode = enabled;
+  $('demo-notice').hidden = !enabled;
+  $('guide-linked').querySelector('div').firstChild.textContent = enabled ? '查看本次体验记录' : '从 App 或 API 调用，查看联动';
+}
 
 class ApiError extends Error {
   constructor(message, status = 0, retryAfter = 0, requestId = '') {
@@ -36,7 +44,8 @@ function failureMessage(status) {
 }
 
 async function api(path, body) {
-  if (!token) throw new ApiError('请先在连接设置中输入 ADMIN_TOKEN。');
+  if (!token && !demoMode) throw new ApiError('请先体验免费演示，或在连接设置中输入 ADMIN_TOKEN。');
+  if (demoMode) path = path.replace('/api/', '/api/demo/');
   const controller = new AbortController();
   controllers.add(controller);
   let timedOut = false;
@@ -44,7 +53,7 @@ async function api(path, body) {
   try {
     const response = await fetch(path, {
       method: body ? 'POST' : 'GET',
-      headers: {Authorization: `Bearer ${token}`, ...(body ? {'Content-Type': 'application/json'} : {})},
+      headers: {...(!demoMode ? {Authorization: `Bearer ${token}`} : {}), ...(body ? {'Content-Type': 'application/json'} : {})},
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
       cache: 'no-store',
@@ -52,7 +61,7 @@ async function api(path, body) {
     const requestId = response.headers.get('X-Request-ID') || '';
     if (!response.ok) {
       const seconds = Number(response.headers.get('Retry-After'));
-      throw new ApiError(failureMessage(response.status), response.status,
+      throw new ApiError(demoMode && response.status === 401 ? '演示已过期，请点击“免费体验”重新开始。' : failureMessage(response.status), response.status,
         response.status === 429 ? Math.min(3600, Math.max(1, Number.isFinite(seconds) && seconds > 0 ? seconds : 60)) : 0,
         requestId);
     }
@@ -138,13 +147,13 @@ async function refresh() {
     $('latency').textContent = stats.average_latency_ms;
     $('cache-hits').textContent = stats.cache_hits;
     $('cache-description').textContent = data.cache_ttl_seconds ? `相同请求缓存 ${data.cache_ttl_seconds} 秒` : '响应缓存已关闭';
-    $('quota-label').textContent = `共享限流 ${data.rate_limit_per_minute} 次 / 分钟`;
-    $('connection-status').textContent = '网关已连接';
+    $('quota-label').textContent = demoMode ? '当前体验 5 次 / 分钟 · 访客共享容量 30 次 / 分钟' : `共享限流 ${data.rate_limit_per_minute} 次 / 分钟`;
+    $('connection-status').textContent = demoMode ? '免费演示已连接' : '网关已连接';
     $('connection-dot').classList.remove('muted');
-    $('provider-label').textContent = data.provider === 'mock' ? '本地模拟模型 · 无 API 费用' : '真实上游 · 会产生供应商 API 费用';
+    $('provider-label').textContent = demoMode ? '模拟模型 · 当前浏览器专属记录 · 15 分钟后过期' : data.provider === 'mock' ? '本地模拟模型 · 无 API 费用' : '真实上游 · 会产生供应商 API 费用';
     $('last-updated').textContent = `最近同步 ${new Date().toLocaleTimeString()}`;
     updateGuide('guide-connect', true);
-    updateGuide('guide-linked', new Set(data.recent_requests.map(r => r.source).filter(Boolean)).size >= 2);
+    updateGuide('guide-linked', demoMode ? data.recent_requests.length > 0 : new Set(data.recent_requests.map(r => r.source).filter(Boolean)).size >= 2);
     const expanded = new Set([...document.querySelectorAll('#request-rows details[open]')].map(el => el.dataset.requestId));
     const rows = data.recent_requests.map((r) => {
       const tr = document.createElement('tr');
@@ -189,10 +198,12 @@ async function safeRefresh(background = false) {
 }
 
 $('connection-form').addEventListener('submit', async (e) => {
-  e.preventDefault(); generation++; reset(); token = $('token').value.trim();
+  e.preventDefault(); generation++; reset(); setDemoMode(false); token = $('token').value.trim();
   await safeRefresh();
 });
 $('disconnect').addEventListener('click', () => {
+  if (demoMode) demoCleanup = fetch('/api/demo/session', {method: 'DELETE', cache: 'no-store'}).catch(() => {});
+  setDemoMode(false);
   generation++; token = ''; $('token').value = ''; reset(); $('refresh').disabled = false;
 });
 $('refresh').addEventListener('click', () => safeRefresh());
@@ -231,3 +242,26 @@ $('prompt-form').addEventListener('submit', async (e) => {
   }
 });
 updateSend();
+
+$('try-demo').addEventListener('click', async () => {
+  const button = $('try-demo');
+  button.disabled = true;
+  generation++; reset(); token = ''; $('token').value = ''; setDemoMode(false);
+  const current = generation;
+  try {
+    await demoCleanup;
+    if (current !== generation) return;
+    const response = await fetch('/api/demo/session', {method: 'POST', cache: 'no-store'});
+    if (current !== generation) return;
+    if (!response.ok) throw new ApiError(response.status === 429 ? '演示繁忙，请一分钟后再试。' : '演示暂不可用，请稍后再试。');
+    setDemoMode(true);
+    if (!$('prompt').value.trim()) $('prompt').value = '我想看看一次模型请求是怎样通过网关的。';
+    await safeRefresh();
+    $('playground').scrollIntoView({behavior: 'smooth', block: 'start'});
+  } catch (e) { if (current === generation) showError(displayFailure(e)); }
+  finally { button.disabled = false; }
+});
+fetch('/api/public-config', {cache: 'no-store'})
+  .then(response => response.ok ? response.json() : {})
+  .then(config => { $('demo-entry').hidden = !config.public_demo_enabled; })
+  .catch(() => {});
