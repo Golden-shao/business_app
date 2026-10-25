@@ -3,51 +3,81 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101c26">
-  <title>ModelJetty · AI Gateway</title>
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="description" content="ModelJetty 是面向独立开发者与小团队的开源 AI 网关。统一模型接入，查看请求记录与失败提示，无需密钥即可体验模拟流程。">
+  <title>ModelJetty · 一个入口，连接你的模型</title>
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
 </head>
 <body>
-  <aside class="sidebar">
-    <a class="brand" href="/" aria-label="ModelJetty 首页"><span class="brand-mark">M</span> modeljetty<span class="brand-dot">.</span></a>
-    <div class="workspace"><span class="workspace-icon">⌘</span><div>Personal workspace<small>SELF-HOSTED / v0.1</small></div></div>
-    <div class="nav-label">CONTROL PLANE</div>
-    <nav aria-label="主导航">
-      <a href="#overview" class="active"><span>◈</span>网关概览</a>
-      <a href="#playground"><span>▷</span>请求试验台</a>
-      <a href="#requests"><span>≡</span>请求记录</a>
-      <a href="#connection"><span>⚙</span>连接设置</a>
+  <header class="site-header">
+    <nav class="navigation" aria-label="主导航">
+      <a class="brand" href="/" aria-label="ModelJetty 首页"><span class="brand-mark" aria-hidden="true">M</span>ModelJetty</a>
+      <div class="navigation-actions"><a href="https://github.com/Golden-shao/modeljetty">GitHub ↗</a><button id="open-management" class="text-button" type="button">连接自己的实例</button></div>
     </nav>
-    <div class="sidebar-bottom"><span class="tiny-dot"></span> Built to run on your terms.<small>Open source · Self-hosted</small></div>
-  </aside>
+  </header>
   <main>
-    <header><div class="breadcrumbs">Workspace <span>/</span> Overview</div><div class="header-right"><span class="outline-badge">SELF-HOSTED</span><span class="avatar">GS</span></div></header>
-    <section id="overview" class="page-heading"><div><div class="eyebrow">YOUR MODELS. YOUR INFRASTRUCTURE.</div><h1>每个请求，都有迹可循<span>.</span></h1><p>一个入口连接模型，让网站与 App 共享同一份运行状态。</p></div><button id="refresh" class="button secondary">↻ 刷新状态</button></section>
-    <section id="demo-entry" class="panel" hidden><h2>先试一次，再决定是否自托管。</h2><p>无需账号或 API Key。用模拟模型发送一条消息，查看回复、请求 ID 和运行记录。</p><button id="try-demo" class="button" type="button">免费体验</button> <a href="https://github.com/Golden-shao/modeljetty">查看开源代码与部署文档 ↗</a><p id="demo-notice" hidden>当前为免费模拟演示：不调用真实供应商，不保存消息正文，记录仅供当前浏览器查看，15 分钟后过期。每分钟最多发送 5 次，全部访客共享有限容量。管理实例请使用下方连接设置。</p></section>
-    <div class="status-strip"><div><span id="connection-dot" class="tiny-dot muted"></span><strong id="connection-status" role="status">等待连接</strong><span class="strip-separator">/</span><span id="provider-label">尚未读取服务配置</span></div><span id="last-updated">未同步</span></div>
-    <div class="sync-controls"><label><input id="auto-sync" type="checkbox" checked>自动同步</label><span id="sync-state">连接后自动同步</span><span>仅同步状态，不会自动调用模型</span></div>
-    <nav class="first-run" aria-label="首次使用引导"><a id="guide-connect" href="#connection"><span>01</span><div>连接实例<small>待完成</small></div></a><a id="guide-send" href="#playground"><span>02</span><div>发送一条消息<small>待完成</small></div></a><a id="guide-linked" href="#requests"><span>03</span><div>从 App 或 API 调用，查看联动<small>待完成</small></div></a></nav>
-    <section class="metrics" aria-label="运行指标">
-      <article class="metric"><span class="metric-label">累计请求 <span>↗</span></span><strong id="requests-count">—</strong><small>所有副本共享 · 含限流请求</small></article>
-      <article class="metric"><span class="metric-label">成功率 <span>◎</span></span><strong id="success-rate">—</strong><small>已记录请求的成功比例</small></article>
-      <article class="metric"><span class="metric-label">平均网关耗时 <span>◷</span></span><strong id="latency">—</strong><small>含上游等待 · 单位 ms</small></article>
-      <article class="metric"><span class="metric-label">缓存命中 <span>▤</span></span><strong id="cache-hits">—</strong><small id="cache-description">基于相同请求内容</small></article>
+    <section id="overview" class="hero" aria-labelledby="hero-title">
+      <p class="eyebrow">开源 AI 网关 · 为独立开发者与小团队而做</p>
+      <h1 id="hero-title">一个入口。<br><span>连接你的模型。</span></h1>
+      <p class="hero-description">让应用通过统一接口调用模型，<br class="desktop-break">在一处看清请求结果，遇到问题知道下一步。</p>
+      <div id="demo-entry" class="hero-action" hidden><button id="try-demo" class="button primary" type="button">免费体验 <span aria-hidden="true">↗</span></button><p>无需账号或 API Key · 仅模拟回显，不产生模型 API 费用</p></div>
+      <a class="learn-link" href="#why">它能帮我做什么？ <span aria-hidden="true">↓</span></a>
+      <div class="request-path" aria-label="自托管时的工作方式示意">
+        <div class="path-node"><span class="node-icon" aria-hidden="true">↗</span><strong>你的应用</strong><small>发出请求</small></div><span class="path-arrow" aria-hidden="true">→</span>
+        <div class="path-node central"><span class="node-icon" aria-hidden="true">M</span><strong>ModelJetty</strong><small>统一入口 · 留下记录</small></div><span class="path-arrow" aria-hidden="true">→</span>
+        <div class="path-node"><span class="node-icon" aria-hidden="true">✳</span><strong>模型服务</strong><small>返回结果</small></div>
+      </div>
+      <p class="diagram-note">自托管模式的请求路径示意。当前在线体验使用模拟模型。</p>
     </section>
-    <div class="main-grid">
-      <section id="playground" class="panel playground"><div class="panel-heading"><div><span class="eyebrow">PLAYGROUND</span><h2>发出第一个请求</h2></div><span class="tag">gateway-default</span></div><p class="section-description">先连接实例，再发送消息。App 与网站会自动同步共享记录。</p>
-        <form id="prompt-form"><label for="prompt">消息内容</label><textarea id="prompt" rows="4" maxlength="12000" required placeholder="例如：用三句话解释 Kubernetes 的 Service。">用三句话解释 Kubernetes 的 Service。</textarea><div class="form-footer"><span id="quota-label">先连接实例，再发送消息</span><button id="send" class="button primary" type="submit" disabled>发送请求 ↗</button></div></form>
-        <p id="playground-error" class="error-notice" role="alert" hidden></p>
-        <div class="response-heading"><span>RESPONSE</span><span id="response-meta">尚未发送请求</span></div><pre id="response" aria-live="polite">连接你的网关，试着发送一条消息。
 
-默认使用本地模拟模型，不产生模型 API 费用。</pre>
-        <p id="response-id" class="request-id"></p>
-      </section>
-      <div class="right-column"><section id="connection" class="panel connection"><div class="panel-heading"><div><span class="eyebrow">CONNECTION</span><h2>管理自己的实例</h2></div><span class="connection-symbol">⌁</span></div><p class="section-description">只想试用？点击上方“免费体验”，无需令牌。管理自己的实例时，再填写下面的服务器管理令牌。</p><form id="connection-form"><label for="endpoint">当前实例地址 · 已自动填写</label><input id="endpoint" readonly aria-describedby="endpoint-help"><small id="endpoint-help">在 App 中填写这个完整地址。网页固定连接当前网站；管理另一台服务器，请打开它自己的网页。</small><label for="token">管理令牌 · ADMIN_TOKEN</label><input id="token" type="password" autocomplete="off" placeholder="只粘贴令牌值，不含 ADMIN_TOKEN=" required minlength="16"><div class="connection-actions"><button class="button secondary" type="submit">连接实例</button><button class="text-button" id="disconnect" type="button">断开</button></div></form><p id="error" role="alert" hidden></p><details class="connection-example"><summary>第一次连接？看填写示例</summary><ol><li>实例地址就是上方地址，例如 <code>https://gateway.example.com</code>（示例域名）。</li><li>从实例维护者获取该服务器的 <code>ADMIN_TOKEN</code>。本地开发才使用本地 <code>.env</code>；不同环境的令牌不能混用。</li><li>若配置写作 <code>ADMIN_TOKEN=demo-admin-token-example-1234</code>，只填写等号右侧。这里是假的格式示例，实际要换成你的令牌。</li><li>点击“连接实例”，看到“网关已连接”后，发送“你好，帮我确认连接成功”。当前模拟模型会回显消息并生成请求 ID。</li></ol><a href="https://github.com/Golden-shao/modeljetty/blob/main/docs/CONNECT.md">查看完整连接指南 ↗</a><p>管理令牌仅保留在当前页面内存中。</p></details></section>
-      <section class="learning-card"><div class="eyebrow">ONE ENDPOINT. YOUR MODELS.</div><h2>一个接口，<br>连接你的 AI 应用。</h2><p>在自托管实例中配置模型，通过统一 API 调用。上游密钥留在服务端，网站与 App 帮你查看处理状态。</p><div class="learning-tags"><span>API</span><span>Web</span><span>iOS</span></div><div class="learning-footer">01 <span>BUILD IN THE OPEN</span><span>↗</span></div></section></div>
-    </div>
-    <section id="requests" class="panel requests"><div class="panel-heading"><div><span class="eyebrow">SHARED ACTIVITY</span><h2>最近的请求</h2></div><span id="request-note" class="subtle">最近 20 条 · 展开 ID 可选择复制 · 不记录正文</span></div><div class="table-wrap"><table><thead><tr><th>请求 ID</th><th>时间</th><th>请求来源</th><th>模型模式</th><th>状态</th><th>耗时</th><th>缓存</th><th>服务节点</th></tr></thead><tbody id="request-rows"><tr><td colspan="8" class="empty">暂无数据。连接实例后查看网站与 App 的共享请求记录。</td></tr></tbody></table></div></section>
-    <footer><span>MODELJETTY / AI GATEWAY</span><span>掌握入口，也掌握你的数据。</span><span>v0.1.1 · Single tenant</span></footer>
+    <section id="why" class="benefits section-width" aria-labelledby="benefits-title">
+      <div class="section-heading"><p class="eyebrow">从接入到排查，少一点摸索</p><h2 id="benefits-title">调用之后，也有答案。</h2></div>
+      <div class="benefit-grid">
+        <article><span class="feature-number">01</span><h3>接入有一个入口。</h3><p>应用使用统一接口，当前模型由服务端配置。供应商密钥留在你的服务器。</p><span class="feature-tag">OpenAI 兼容文本接口</span></article>
+        <article><span class="feature-number">02</span><h3>排查有一条线索。</h3><p>请求 ID、来源与错误提示放在一起。遇到限流，明确告诉你何时再试。</p><span class="feature-tag">请求可追踪 · 不自动重发消息</span></article>
+        <article><span class="feature-number">03</span><h3>体验不从密钥开始。</h3><p>先走通一次模拟请求，再决定是否自托管。访客记录隔离，演示无需模型账号。</p><span class="feature-tag">免费演示 · MIT 开源</span></article>
+      </div>
+    </section>
+
+    <section id="playground" class="experience section-width" aria-labelledby="experience-title">
+      <div class="section-heading"><p class="eyebrow">亲手试一次</p><h2 id="experience-title">从一句「你好」开始。</h2><p id="playground-description">点击上方“免费体验”，发送一句话，看看一次请求如何完成。</p></div>
+      <div class="experience-card">
+        <div class="session-toolbar"><div class="session-state"><span id="connection-dot" class="status-dot muted"></span><strong id="connection-status" role="status">尚未开始</strong></div><div id="session-tools" hidden><button id="refresh" class="text-button" type="button">刷新状态</button><button id="disconnect" class="text-button" type="button">断开</button></div></div>
+        <p id="provider-label" class="provider-label">连接后显示当前模型模式</p>
+        <p id="demo-notice" class="demo-notice" hidden>这是模拟回显。记录仅在当前浏览器可见，15 分钟后过期。</p>
+        <ol id="journey" class="journey" aria-label="体验进度" hidden>
+          <li id="guide-connect"><span>1</span><div>开始体验<small>待完成</small></div></li><li id="guide-send"><span>2</span><div>发送消息<small>待完成</small></div></li><li id="guide-linked"><span>3</span><div>查看请求记录<small>待完成</small></div></li>
+        </ol>
+        <form id="prompt-form"><label for="prompt">你想发送什么？</label><textarea id="prompt" rows="3" maxlength="12000" required placeholder="写一句话，验证一次模型调用。">你好，帮我验证一次模型调用。</textarea><div class="form-footer"><span id="quota-label">开始体验后即可发送</span><button id="send" class="button primary" type="submit" disabled>发送请求 ↗</button></div></form>
+        <p id="playground-error" class="error-notice" role="alert" hidden></p>
+        <div class="response-block"><div class="response-heading"><h3>本次结果</h3><span id="result-state">等待发送</span></div><pre id="response" aria-live="polite">回复会出现在这里。免费演示将回显你发送的文字。</pre>
+          <details class="response-detail"><summary>查看这次请求的详情</summary><p id="response-meta">尚未发送请求</p><p id="response-id" class="request-id"></p></details>
+        </div>
+      </div>
+
+      <details id="diagnostics" class="disclosure"><summary>查看运行详情<span>统计与请求记录</span></summary><div class="disclosure-content">
+        <div class="sync-controls"><label><input id="auto-sync" type="checkbox" checked>自动同步</label><span id="sync-state">连接后自动同步</span><span id="last-updated">未同步</span></div>
+        <div class="metrics"><article><span>累计请求</span><strong id="requests-count">—</strong></article><article><span>成功率</span><strong id="success-rate">—</strong></article><article><span>平均耗时</span><strong id="latency">—</strong><small>ms</small></article><article><span>缓存命中</span><strong id="cache-hits">—</strong><small id="cache-description">连接后读取缓存配置</small></article></div>
+        <section id="requests"><div class="requests-heading"><h3>最近的请求</h3><p id="request-note">最近 20 条 · 展开 ID 可复制 · 不记录正文</p></div><div class="table-wrap"><table><thead><tr><th>请求 ID</th><th>时间</th><th>来源</th><th>模型模式</th><th>状态</th><th>耗时</th><th>缓存</th><th>节点</th></tr></thead><tbody id="request-rows"><tr><td colspan="8" class="empty">完成一次请求后，在这里查看记录。</td></tr></tbody></table></div></section>
+      </div></details>
+
+      <details id="management" class="disclosure management"><summary>连接我自己的实例<span>已有部署的维护者使用</span></summary><section id="connection" class="disclosure-content">
+        <h2>管理自己的实例</h2><p class="section-description">这里使用网关管理令牌。模型服务的 API Key 由维护者配置在服务端。</p>
+        <form id="connection-form"><label for="endpoint">当前实例地址 · 已自动填写</label><input id="endpoint" readonly aria-describedby="endpoint-help"><small id="endpoint-help">网页管理当前网站对应的实例。在 App 中填写这个完整地址。</small><label for="token">管理令牌 · ADMIN_TOKEN</label><input id="token" type="password" autocomplete="off" placeholder="只粘贴令牌值，不含 ADMIN_TOKEN=" required minlength="16"><button class="button primary" type="submit">连接实例</button></form>
+        <details class="connection-example"><summary>第一次连接？看填写示例</summary><ol><li>实例地址就是上方地址，例如 <code>https://gateway.example.com</code>（示例域名）。</li><li>使用该服务器的 <code>ADMIN_TOKEN</code>。本地开发的 <code>.env</code> 与服务器使用不同凭据。</li><li>例如 <code>ADMIN_TOKEN=demo-admin-token-example-1234</code>，只复制等号右侧。这里是假的格式示例，实际要换成你的令牌。</li><li>看到“网关已连接”后，发送一条消息，再查看请求记录。</li></ol><a href="https://github.com/Golden-shao/modeljetty/blob/main/docs/CONNECT.md">完整连接指南 ↗</a><p>令牌只保留在当前页面内存中。</p></details>
+      </section></details>
+    </section>
+
+    <section class="questions section-width" aria-labelledby="questions-title"><h2 id="questions-title">开始前，你可能想知道。</h2>
+      <details><summary>它和直接使用聊天工具有什么区别？</summary><p>ModelJetty 面向正在开发 AI 应用的人：把模型调用集中到一个可自托管的入口，再通过同一份请求记录检查调用结果。它提供接入与诊断，回答能力来自你配置的模型。</p></details>
+      <details><summary>现在可以真正调用我的模型吗？</summary><p>自托管模式支持在服务端配置一个 OpenAI 兼容的模型服务，用非流式文本接口调用。当前公开演示只做模拟回显。真实模型 Key 不填在管理令牌框中，相关配置见部署文档。</p></details>
+      <details><summary>可以直接用我的 ChatGPT 账号吗？</summary><p>当前版本尚未接入“使用 ChatGPT 登录”，不能把 ChatGPT 登录凭据作为模型 API Key 填入。你可以先无需密钥体验模拟流程。</p></details>
+      <details><summary>体验需要付费吗？</summary><p>当前在线模拟演示不调用真实模型，无需账号或 API Key。自行接入模型服务可能产生供应商费用，自托管服务器也有其运行成本。项目采用 MIT 开源许可。</p></details>
+    </section>
+    <section class="closing section-width"><p>先看清一次调用，再连接你的应用。</p><a class="learn-link" href="https://github.com/Golden-shao/modeljetty">查看源码与自托管文档 ↗</a></section>
   </main>
+  <p id="error" class="global-error" role="alert" hidden></p>
+  <footer class="site-footer"><a class="brand" href="/">ModelJetty</a><span>开源 · 可自托管 · 预览版</span><a href="https://github.com/Golden-shao/modeljetty/issues">反馈与贡献 ↗</a></footer>
 </body>
 </html>

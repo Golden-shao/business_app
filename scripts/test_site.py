@@ -33,10 +33,12 @@ def check_browser():
         page.clock.install()
         page.goto(BASE)
         expect(page.locator('#send')).to_be_disabled()
+        page.locator('#open-management').click()
         page.locator('#token').fill(ADMIN)
         page.locator('#connection-form button[type=submit]').click()
         expect(page.locator('#connection-status')).to_have_text('网关已连接')
         expect(page.locator('#guide-connect')).to_have_class('done')
+        page.locator('#diagnostics > summary').click()
         for _ in range(2):
             page.locator('#send').click()
             expect(page.locator('#send')).to_be_enabled()
@@ -100,6 +102,7 @@ def check_browser():
         before = len(reads)
         page.clock.fast_forward(20000)
         assert len(reads) == before
+        page.locator('#open-management').click()
         page.locator('#token').fill('incorrect-admin-token-1234')
         page.locator('#connection-form button[type=submit]').click()
         expect(page.locator('#error')).to_contain_text('ADMIN_TOKEN')
