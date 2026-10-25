@@ -10,7 +10,9 @@ commit=${2:?Provide a reviewed 40-character Git commit}
 source /etc/os-release
 [[ $ID == amzn && $VERSION_ID == 2023 ]] || { echo 'Requires Amazon Linux 2023.' >&2; exit 1; }
 
-dnf install -y python3.12 python3.12-pip valkey git tar gzip curl
+dnf install -y python3.12 python3.12-pip valkey git tar gzip
+# AL2023 ships curl-minimal; installing full curl alongside it conflicts.
+command -v curl >/dev/null || dnf install -y curl-minimal
 id modeljetty >/dev/null 2>&1 || useradd --system --home-dir /var/lib/modeljetty --shell /sbin/nologin modeljetty
 id caddy >/dev/null 2>&1 || useradd --system --home-dir /var/lib/caddy --shell /sbin/nologin caddy
 install -d -m 755 /opt/modeljetty/releases /etc/modeljetty /var/lib/modeljetty
@@ -100,7 +102,7 @@ ProtectSystem=strict
 WantedBy=multi-user.target
 EOF
 
-# Pin the upstream binary and verify it against the release's SHA256 manifest.
+# Pin the upstream binary and verify it against the release's SHA512 manifest.
 caddy_version=2.11.7
 tmp=$(mktemp -d)
 trap 'rm -f "$tmp/caddy.tar.gz" "$tmp/checksums.txt" "$tmp/caddy"; rmdir "$tmp" 2>/dev/null || true' EXIT
@@ -108,8 +110,8 @@ base=https://github.com/caddyserver/caddy/releases/download/v$caddy_version
 curl --fail --location "$base/caddy_${caddy_version}_linux_amd64.tar.gz" -o "$tmp/caddy.tar.gz"
 curl --fail --location "$base/caddy_${caddy_version}_checksums.txt" -o "$tmp/checksums.txt"
 expected=$(awk -v file="caddy_${caddy_version}_linux_amd64.tar.gz" '$2 == file {print $1}' "$tmp/checksums.txt")
-[[ $expected =~ ^[a-f0-9]{64}$ ]]
-printf '%s  %s\n' "$expected" "$tmp/caddy.tar.gz" | sha256sum --check
+[[ $expected =~ ^[a-f0-9]{128}$ ]]
+printf '%s  %s\n' "$expected" "$tmp/caddy.tar.gz" | sha512sum --check
 tar -xzf "$tmp/caddy.tar.gz" -C "$tmp" caddy
 install -m 755 "$tmp/caddy" /usr/local/bin/caddy
 cat > /etc/modeljetty/Caddyfile <<EOF

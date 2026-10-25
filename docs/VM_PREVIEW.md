@@ -19,7 +19,7 @@ flowchart LR
 sudo bash deploy/vm/install.sh modeljetty.YOUR-IP.sslip.io REVIEWED_40_CHARACTER_COMMIT
 ```
 
-安装器固定检出传入的提交，使用一个非 root 网关进程、回环地址上的 Valkey，以及自动签发和续期证书的 Caddy。Caddy 二进制固定版本并校验上游 SHA256 清单。首次安装生成独立的服务器凭据，后续执行保留凭据及数据。默认模拟模型、每分钟共享限额 30 次、关闭响应缓存，不使用付费模型。
+安装器固定检出传入的提交，使用一个非 root 网关进程、回环地址上的 Valkey，以及自动签发和续期证书的 Caddy。Caddy 二进制固定版本并校验上游 SHA512 清单。首次安装生成独立的服务器凭据，后续执行保留凭据及数据。默认模拟模型、每分钟共享限额 30 次、关闭响应缓存，不使用付费模型。
 
 网站能被所有人打开，管理台连接仍需要服务器的 `ADMIN_TOKEN`；API 调用使用不同的 `GATEWAY_TOKEN`。凭据在 `/etc/modeljetty/gateway.env`，仅 root 可读，不能提交到 Git 或放进网页。可信测试者共享同一个实例及请求统计，当前没有账号注册、租户隔离或匿名试用。不要把管理令牌发布到公共页面。
 
