@@ -1,6 +1,6 @@
 {
-    "name": "Harbor",
-    "short_name": "Harbor",
+    "name": "ModelJetty",
+    "short_name": "ModelJetty",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

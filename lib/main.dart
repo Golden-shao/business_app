@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 import 'gateway_api.dart';
 
-void main() => runApp(const HarborApp());
+void main() => runApp(const ModelJettyApp());
 
 String _sourceName(dynamic source) => switch (source) {
   'web' => '网站',
@@ -19,13 +19,13 @@ String _formatTime(DateTime time) => [
   time.second,
 ].map((value) => value.toString().padLeft(2, '0')).join(':');
 
-class HarborApp extends StatelessWidget {
-  const HarborApp({super.key, this.client, this.now});
+class ModelJettyApp extends StatelessWidget {
+  const ModelJettyApp({super.key, this.client, this.now});
   final http.Client? client;
   final DateTime Function()? now;
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Harbor · AI Gateway',
+    title: 'ModelJetty · AI Gateway',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
       useMaterial3: true,
@@ -514,7 +514,7 @@ class _GatewayScreenState extends State<GatewayScreen>
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text(
-        'harbor.',
+        'modeljetty.',
         style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -1),
       ),
       actions: [

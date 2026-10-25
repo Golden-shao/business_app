@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:harbor/gateway_api.dart';
-import 'package:harbor/main.dart';
+import 'package:modeljetty/gateway_api.dart';
+import 'package:modeljetty/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -32,7 +32,7 @@ Future<void> connect(
   DateTime Function()? now,
 }) async {
   tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-  await tester.pumpWidget(HarborApp(client: client, now: now));
+  await tester.pumpWidget(ModelJettyApp(client: client, now: now));
   await tester.tap(find.text('连接我的网关'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField).at(1), 'admin-test-token-1234');

@@ -18,7 +18,7 @@ kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout
 kubectl -n cert-manager rollout status deployment/cert-manager-cainjector --timeout=180s
 
 git init /opt/harbor
-git -C /opt/harbor remote add origin https://github.com/Golden-shao/harbor.git
+git -C /opt/harbor remote add origin https://github.com/Golden-shao/modeljetty.git
 git -C /opt/harbor fetch --depth 1 origin '${release_commit}'
 git -C /opt/harbor checkout --detach FETCH_HEAD
 cd /opt/harbor

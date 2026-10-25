@@ -1,4 +1,4 @@
-# Harbor contributor and review guidance
+# ModelJetty contributor and review guidance
 
 - Use a feature branch and PR for changes. `main` is protected; do not bypass required checks or reviews.
 - Users consume the API, website and App. Kubernetes concepts belong in operator documentation, not in ordinary user actions.

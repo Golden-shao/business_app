@@ -16,7 +16,7 @@ def load_script(name):
 
 render = load_script('render_cloud')
 credentials = load_script('cloud_credentials')
-IMAGE = 'ghcr.io/golden-shao/harbor/gateway@sha256:' + 'a' * 64
+IMAGE = 'ghcr.io/golden-shao/modeljetty/gateway@sha256:' + 'a' * 64
 
 
 def base():
