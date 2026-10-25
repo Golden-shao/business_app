@@ -17,7 +17,10 @@ $('endpoint').value = location.origin;
 function setDemoMode(enabled) {
   demoMode = enabled;
   $('demo-notice').hidden = !enabled;
-  $('guide-linked').querySelector('div').firstChild.textContent = enabled ? '查看本次体验记录' : '从 App 或 API 调用，查看联动';
+  $('guide-linked').querySelector('div').firstChild.textContent = enabled ? '查看本次记录' : '查看跨端同步';
+  $('playground-description').textContent = enabled
+    ? '演示会回显你的文字，验证调用流程，不会生成真实模型回答。'
+    : '使用实例配置的模型发送消息，在这里查看回复与请求记录。';
 }
 
 class ApiError extends Error {
@@ -112,9 +115,12 @@ function reset() {
   clearTimeout(pollTimer); clearInterval(countdownTimer);
   for (const controller of controllers) controller.abort();
   for (const id of ['requests-count', 'success-rate', 'latency', 'cache-hits']) $(id).textContent = '—';
-  $('connection-status').textContent = '等待连接';
+  $('connection-status').textContent = '尚未开始';
+  $('session-tools').hidden = true;
+  $('journey').hidden = true;
+  $('result-state').textContent = '等待发送';
   $('connection-dot').classList.add('muted');
-  $('provider-label').textContent = '尚未读取服务配置';
+  $('provider-label').textContent = '连接后显示当前模型模式';
   $('quota-label').textContent = '先连接实例，再发送消息';
   $('cache-description').textContent = '基于相同请求内容';
   $('last-updated').textContent = '未同步';
@@ -141,16 +147,18 @@ async function refresh() {
     if (current !== generation) return;
     if (!data.stats || !Array.isArray(data.recent_requests)) throw new ApiError('实例返回的数据不完整，请确认 ModelJetty 服务版本。');
     connected = true;
+    $('session-tools').hidden = false;
+    $('journey').hidden = false;
     const stats = data.stats;
     $('requests-count').textContent = stats.requests.toLocaleString();
     $('success-rate').textContent = stats.requests ? `${((stats.requests - stats.errors) / stats.requests * 100).toFixed(1)}%` : '—';
     $('latency').textContent = stats.average_latency_ms;
     $('cache-hits').textContent = stats.cache_hits;
     $('cache-description').textContent = data.cache_ttl_seconds ? `相同请求缓存 ${data.cache_ttl_seconds} 秒` : '响应缓存已关闭';
-    $('quota-label').textContent = demoMode ? '当前体验 5 次 / 分钟 · 访客共享容量 30 次 / 分钟' : `共享限流 ${data.rate_limit_per_minute} 次 / 分钟`;
+    $('quota-label').textContent = demoMode ? '每分钟最多 5 次 · 仅模拟调用' : `共享限流 ${data.rate_limit_per_minute} 次 / 分钟`;
     $('connection-status').textContent = demoMode ? '免费演示已连接' : '网关已连接';
     $('connection-dot').classList.remove('muted');
-    $('provider-label').textContent = demoMode ? '模拟模型 · 当前浏览器专属记录 · 15 分钟后过期' : data.provider === 'mock' ? '本地模拟模型 · 无 API 费用' : '真实上游 · 会产生供应商 API 费用';
+    $('provider-label').textContent = demoMode ? '模拟模式 · 无模型 API 费用' : data.provider === 'mock' ? '模拟模型 · 未调用真实供应商' : '真实上游 · 会产生供应商 API 费用';
     $('last-updated').textContent = `最近同步 ${new Date().toLocaleTimeString()}`;
     updateGuide('guide-connect', true);
     updateGuide('guide-linked', demoMode ? data.recent_requests.length > 0 : new Set(data.recent_requests.map(r => r.source).filter(Boolean)).size >= 2);
@@ -199,7 +207,16 @@ async function safeRefresh(background = false) {
 
 $('connection-form').addEventListener('submit', async (e) => {
   e.preventDefault(); generation++; reset(); setDemoMode(false); token = $('token').value.trim();
+  const current = generation;
   await safeRefresh();
+  if (current === generation && connected && !demoMode) {
+    $('management').open = false;
+    $('playground').scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
+});
+$('open-management').addEventListener('click', () => {
+  $('management').open = true;
+  $('connection').scrollIntoView({behavior: 'smooth', block: 'start'});
 });
 $('disconnect').addEventListener('click', () => {
   if (demoMode) demoCleanup = fetch('/api/demo/session', {method: 'DELETE', cache: 'no-store'}).catch(() => {});
@@ -220,12 +237,14 @@ $('prompt-form').addEventListener('submit', async (e) => {
   if (!connected || sending || retryAt > Date.now()) return;
   const current = generation;
   sending = true; updateSend(); $('response-meta').textContent = '请求中…'; showError('', 'playground-error');
+  $('result-state').textContent = '正在等待响应…';
   try {
     const {data, response} = await api('/api/playground', {model: 'gateway-default', messages: [{role: 'user', content: $('prompt').value}]});
     if (current !== generation) return;
     const content = data?.choices?.[0]?.message?.content;
     if (typeof content !== 'string') throw new ApiError('模型回复格式不正确，请检查网关和上游配置。');
     $('response').textContent = content;
+    $('result-state').textContent = '已收到响应';
     $('response-meta').textContent = `200 OK · CACHE ${response.headers.get('X-Cache')}`;
     $('response-id').textContent = `请求 ID：${response.headers.get('X-Request-ID') || data.id || '未提供'}`;
     updateGuide('guide-send', true);
@@ -233,6 +252,7 @@ $('prompt-form').addEventListener('submit', async (e) => {
   } catch (e) {
     if (current === generation) {
       $('response-meta').textContent = '请求失败 · 可修改后重试';
+      $('result-state').textContent = '未完成 · 请查看提示';
       if (e.status === 429) retryAt = Date.now() + e.retryAfter * 1000;
       if (e.status === 401) { connected = false; clearTimeout(pollTimer); syncLabel(); }
       showError(displayFailure(e), 'playground-error');
