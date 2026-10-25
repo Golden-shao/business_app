@@ -14,9 +14,10 @@ def test_demo_is_opt_in_and_rejects_real_provider_configuration():
     with TestClient(app()) as client:
         assert client.get('/api/public-config').json() == {'public_demo_enabled': False}
         assert client.post('/api/demo/session').status_code != 200
-    with pytest.raises(ValidationError, match='mock provider'):
+    with pytest.raises(ValidationError, match='mock provider') as error:
         settings(public_demo_enabled=True, provider='openai-compatible',
                  upstream_api_key='fake-upstream-key', upstream_model='example')
+    assert all(secret not in str(error.value) for secret in [ADMIN, CLIENT, 'fake-upstream-key'])
 
 
 def test_guest_isolation_and_private_auth_boundaries():

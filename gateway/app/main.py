@@ -22,7 +22,7 @@ from redis.exceptions import RedisError
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+    model_config = SettingsConfigDict(env_file='.env', extra='ignore', hide_input_in_errors=True)
     admin_token: str = Field(min_length=16)
     gateway_token: str = Field(min_length=16)
     redis_url: str = 'redis://localhost:6379/0'
