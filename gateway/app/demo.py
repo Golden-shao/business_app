@@ -13,9 +13,17 @@ COOKIE = 'modeljetty_demo'
 TTL = 900
 PREFIX = 'modeljetty:demo:'
 WINDOW = """
-local n = redis.call('INCR', KEYS[1])
-if n == 1 then redis.call('EXPIRE', KEYS[1], 60) end
-return {n, redis.call('TTL', KEYS[1])}
+for i = 1, 2 do
+  local count = tonumber(redis.call('GET', KEYS[i]) or '0')
+  if count >= tonumber(ARGV[i]) then
+    return {0, math.max(1, redis.call('TTL', KEYS[i]))}
+  end
+end
+for i = 1, 2 do
+  local count = redis.call('INCR', KEYS[i])
+  if count == 1 then redis.call('EXPIRE', KEYS[i], 60) end
+end
+return {1, 0}
 """
 
 
@@ -29,9 +37,10 @@ class DemoPrompt(BaseModel):
     messages: list[DemoMessage] = Field(min_length=1, max_length=1)
 
 
-async def limit(store, key, maximum):
-    count, retry = await store.eval(WINDOW, 1, PREFIX + key)
-    if count > maximum:
+async def limit(store, local_key, local_maximum, global_key, global_maximum):
+    allowed, retry = await store.eval(WINDOW, 2, PREFIX + local_key, PREFIX + global_key,
+                                      local_maximum, global_maximum)
+    if not allowed:
         raise HTTPException(429, 'Demo capacity reached', headers={'Retry-After': str(max(1, retry))})
 
 
@@ -56,8 +65,8 @@ def register_demo(app):
         same_origin(request)
         store = request.app.state.store
         ip = request.client.host if request.client else 'unknown'
-        await limit(store, 'session-global', 100)
-        await limit(store, 'session-ip:' + hashlib.sha256(ip.encode()).hexdigest(), 5)
+        await limit(store, 'session-ip:' + hashlib.sha256(ip.encode()).hexdigest(), 5,
+                    'session-global', 100)
         token = secrets.token_urlsafe(32)
         digest = hashlib.sha256(token.encode()).hexdigest()
         await store.set(PREFIX + 'session:' + digest, '1', ex=TTL)
@@ -85,8 +94,7 @@ def register_demo(app):
         same_origin(request)
         prefix, remaining = await session(request)
         store = request.app.state.store
-        await limit(store, 'request-global', 30)
-        await limit(store, prefix.removeprefix(PREFIX) + 'rate', 5)
+        await limit(store, prefix.removeprefix(PREFIX) + 'rate', 5, 'request-global', 30)
         request_id = 'demo-' + uuid.uuid4().hex
         event = {'id': request_id, 'time': int(time.time()), 'status': 200, 'latency_ms': 0,
                  'cached': False, 'provider': 'mock', 'served_by': 'public-demo', 'source': 'web'}

@@ -86,3 +86,23 @@ def test_session_creation_and_global_work_are_bounded():
         assert 0 < store.ttl('modeljetty:demo:request-global') <= 60
         client.cookies.set('modeljetty_demo', 'f' * 43, path='/api/demo')
         assert client.get('/api/demo/overview').status_code == 401
+
+
+def test_rejected_visitor_does_not_consume_other_visitors_capacity():
+    server = fakeredis.FakeServer()
+    store = fakeredis.FakeRedis(server=server, decode_responses=True)
+    with TestClient(app(server, public_demo_enabled=True), client=('198.51.100.1', 1234)) as a, \
+         TestClient(app(server, public_demo_enabled=True), client=('198.51.100.2', 1234)) as b:
+        for _ in range(5):
+            assert a.post('/api/demo/session').status_code == 200
+        for _ in range(100):
+            assert a.post('/api/demo/session').status_code == 429
+        assert int(store.get('modeljetty:demo:session-global')) == 5
+        assert b.post('/api/demo/session').status_code == 200
+        for _ in range(5):
+            assert a.post('/api/demo/playground', json=BODY).status_code == 200
+        for _ in range(40):
+            assert a.post('/api/demo/playground', json=BODY).status_code == 429
+        assert int(store.get('modeljetty:demo:request-global')) == 5
+        assert b.post('/api/demo/playground', json=BODY).status_code == 200
+        assert int(store.get('modeljetty:demo:request-global')) == 6
