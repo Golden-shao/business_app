@@ -185,6 +185,8 @@ docs/ROADMAP.md    发展目标和阶段验收
 
 ## 项目名称与兼容性
 
+要先在已有的小型 EC2 上跑通公网访问，可使用 [虚拟机 HTTPS 预览部署](docs/VM_PREVIEW.md)。这是独立于 Kubernetes 的低流量验证路径。
+
 项目现名 **ModelJetty**，仓库为 [Golden-shao/modeljetty](https://github.com/Golden-shao/modeljetty)。已有本地目录无需改名；新克隆使用 `git clone https://github.com/Golden-shao/modeljetty.git`。
 
 为兼容现有实例，Kubernetes 命名空间、Redis 键前缀、应用包标识和 `X-Harbor-Client` 请求头继续使用原有技术标识。分支保护要求的 `Harbor / AI review` 状态名也保留，品牌更名不改变审核门禁。新发布镜像使用 `ghcr.io/golden-shao/modeljetty/gateway`；已有镜像不会随仓库自动更名。
