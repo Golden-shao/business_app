@@ -475,7 +475,7 @@ class _GatewayScreenState extends State<GatewayScreen>
   ]);
 
   Widget _settingsView() => _card('连接设置', [
-    const Text('管理令牌仅保留在本次运行内存中。真机请填写可达的 HTTPS 地址；localhost 指向手机自身。'),
+    const Text('填写服务器的完整 HTTPS 地址和该服务器的管理令牌。令牌仅保留在本次运行内存中。'),
     const SizedBox(height: 20),
     TextField(
       controller: _endpoint,
@@ -492,7 +492,10 @@ class _GatewayScreenState extends State<GatewayScreen>
       obscureText: true,
       autocorrect: false,
       enableSuggestions: false,
-      decoration: const InputDecoration(labelText: 'ADMIN_TOKEN'),
+      decoration: const InputDecoration(
+        labelText: '管理令牌 · ADMIN_TOKEN',
+        hintText: '只粘贴令牌的值，不含 ADMIN_TOKEN=',
+      ),
     ),
     const SizedBox(height: 20),
     Wrap(
@@ -505,6 +508,15 @@ class _GatewayScreenState extends State<GatewayScreen>
         TextButton(
           onPressed: _busy ? null : _disconnect,
           child: const Text('断开并清除令牌'),
+        ),
+      ],
+    ),
+    const ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      title: Text('第一次连接？看填写示例'),
+      children: [
+        Text(
+          '地址示例：https://gateway.example.com，替换为你的服务器地址。管理令牌从实例维护者获取，只填 ADMIN_TOKEN= 后面的值，不含变量名或引号。服务器与本地开发使用各自的令牌；真机上的 localhost 指向手机自身。',
         ),
       ],
     ),
