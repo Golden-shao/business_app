@@ -8,6 +8,7 @@
 
 ## 能力
 
+- 可选的免费访客演示：无需令牌，仅模拟回复，浏览器会话隔离、限流并在 15 分钟后过期；默认关闭，见 [预览部署](docs/VM_PREVIEW.md)。
 - OpenAI 风格 `POST /v1/chat/completions`，支持非流式纯文本，模型别名 `gateway-default`。
 - 模拟模型，或一个配置好的 OpenAI 兼容上游。
 - Redis 原子限流、响应缓存和共享统计，网关可多副本运行。

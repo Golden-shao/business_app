@@ -34,6 +34,9 @@ jobs:
       - run: python scripts/test_site.py
         env:
           PYTHONPATH: gateway
+      - run: python scripts/test_demo_site.py
+        env:
+          PYTHONPATH: gateway
       - run: docker build -f gateway/Dockerfile -t harbor-gateway:test .
       - uses: azure/setup-kubectl@v4
         with:

@@ -4,9 +4,11 @@ set -euo pipefail
 umask 077
 domain=${1:?Usage: sudo bash install.sh DOMAIN REVIEWED_COMMIT}
 commit=${2:?Provide a reviewed 40-character Git commit}
+mode=${3:-private}
 [[ $EUID == 0 ]] || { echo 'Run with sudo.' >&2; exit 1; }
 [[ $domain =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && $domain == *.* ]] || exit 1
 [[ $commit =~ ^[a-f0-9]{40}$ ]] || exit 1
+[[ $mode == private || $mode == public-demo ]] || exit 1
 source /etc/os-release
 [[ $ID == amzn && $VERSION_ID == 2023 ]] || { echo 'Requires Amazon Linux 2023.' >&2; exit 1; }
 
@@ -32,10 +34,11 @@ python3.12 -m venv "$release/.venv"
 # Runtime users can read code, but cannot edit the installed release.
 chmod -R go+rX "$release"
 
-python3.12 - <<'PY'
+python3.12 - "$mode" <<'PY'
 import os
 from pathlib import Path
 import secrets
+import sys
 p = Path('/etc/modeljetty/gateway.env')
 if not p.exists():
     with open(p, 'x', opener=lambda name, flags: os.open(name, flags, 0o600)) as f:
@@ -43,6 +46,13 @@ if not p.exists():
         f.write('GATEWAY_TOKEN=' + secrets.token_urlsafe(32) + '\n')
         f.write('REDIS_URL=redis://127.0.0.1:6379/0\nPROVIDER=mock\n')
         f.write('RATE_LIMIT_PER_MINUTE=30\nCACHE_TTL_SECONDS=0\nCORS_ORIGINS=[]\n')
+lines = p.read_text().splitlines()
+values = dict(line.split('=', 1) for line in lines if '=' in line)
+enabled = sys.argv[1] == 'public-demo'
+if enabled and values.get('PROVIDER', 'mock') != 'mock':
+    raise SystemExit('Public demo cannot be enabled with a real provider')
+p.write_text('\n'.join(line for line in lines if not line.startswith('PUBLIC_DEMO_ENABLED='))
+             + '\nPUBLIC_DEMO_ENABLED=' + str(enabled).lower() + '\n')
 p.chmod(0o600)
 PY
 

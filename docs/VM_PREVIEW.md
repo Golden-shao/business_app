@@ -19,9 +19,17 @@ flowchart LR
 sudo bash deploy/vm/install.sh modeljetty.YOUR-IP.sslip.io REVIEWED_40_CHARACTER_COMMIT
 ```
 
+默认是私有管理台接入。要在纯模拟实例开放免费访客体验，在命令末尾加 `public-demo`：
+
+```bash
+sudo bash deploy/vm/install.sh modeljetty.YOUR-IP.sslip.io REVIEWED_40_CHARACTER_COMMIT public-demo
+```
+
+访客点击“免费体验”，不需要任何管理令牌。演示使用独立的随机会话和 Redis 命名空间，记录只属于当前浏览器，15 分钟后过期，不缓存或记录消息正文。每位访客每分钟最多 5 次模拟请求，全部访客合计每分钟 30 次。创建会话也有每 IP 及全局上限。该模式拒绝真实模型供应商配置，演示代码也不持有上游客户端，不能用于付费推理。退出体验会清理会话及其记录；重新部署时不传 `public-demo` 即关闭入口。
+
 安装器固定检出传入的提交，使用一个非 root 网关进程、回环地址上的 Valkey，以及自动签发和续期证书的 Caddy。Caddy 二进制固定版本并校验上游 SHA512 清单。首次安装生成独立的服务器凭据，后续执行保留凭据及数据。默认模拟模型、每分钟共享限额 30 次、关闭响应缓存，不使用付费模型。
 
-网站能被所有人打开，管理台连接仍需要服务器的 `ADMIN_TOKEN`；API 调用使用不同的 `GATEWAY_TOKEN`。凭据在 `/etc/modeljetty/gateway.env`，仅 root 可读，不能提交到 Git 或放进网页。可信测试者共享同一个实例及请求统计，当前没有账号注册、租户隔离或匿名试用。不要把管理令牌发布到公共页面。
+网站能被所有人打开，管理台连接仍需要服务器的 `ADMIN_TOKEN`；API 调用使用不同的 `GATEWAY_TOKEN`。凭据在 `/etc/modeljetty/gateway.env`，仅 root 可读，不能提交到 Git 或放进网页。可信测试者共享同一个私有实例及请求统计，当前没有账号注册或完整多租户功能；可选的访客演示与私有管理台数据隔离。不要把管理令牌发布到公共页面。
 
 ## 验收与运维
 
